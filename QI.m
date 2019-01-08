@@ -22,11 +22,11 @@ BeginPackage["QI`"]
 
 CT::usage="CT[] is short for ConjugateTranspose[]."
 
-ket::usage="ket[i,d] gives |i> in dimension d."
+Ket::usage="Ket[i,d] gives |i> in dimension d."
 
-bra::usage="bra[i,d] gives <i| in dimension d."
+Bra::usage="Bra[i,d] gives <i| in dimension d."
 
-dm::usage="dm[] converts a vector (state) into a (density) matrix."
+DM::usage="DM[] converts a vector (state) into a (density) matrix."
 
 CircleTimes::usage="CircleTimes[] performs the tensor product."
 
@@ -225,11 +225,11 @@ Begin["`Private`"]
 
 CT[M_]:=ConjugateTranspose[M]
 
-ket[i_,d_]:=Module[{},If[i>=d||i<0,Print["ket: input should be between 0 and d-1"]];Transpose[{UnitVector[d,i+1]}]]
+Ket[i_,d_]:=Module[{},If[i>=d||i<0,Print["Ket: input should be between 0 and d-1"]];Transpose[{UnitVector[d,i+1]}]]
 
-bra[i_,d_]:=Module[{},If[i>=d||i<0,Print["bra: input should be between 0 and d-1"]];Conjugate[{UnitVector[d,i+1]}]]
+Bra[i_,d_]:=Module[{},If[i>=d||i<0,Print["Bra: input should be between 0 and d-1"]];Conjugate[{UnitVector[d,i+1]}]]
 
-dm[vec_]:=vec.CT[vec]
+DM[vec_]:=vec.CT[vec]
 
 CircleTimes[a__]:=KroneckerProduct[a]
 
@@ -281,13 +281,13 @@ MeasureBasis[rho_,basis_]:=Module[{out,i,j,dimrho,dimU,proj},dimrho=Dimensions[r
 
 MeasureBasis[rho_,basis_,sys_,desc_]:=Module[{out,i,j,dimrho,dimU,proj},dimrho=Dimensions[rho][[1]];If[Tr[desc,Times]!=dimrho,Print["MeasureBasis: Dimensions of desc should match those of matrix"]];dimU=Dimensions[basis][[1]];out=rho*0;For[i=1,i<=dimU,i++,proj=Transpose[{basis[[i]]}].Conjugate[{basis[[i]]}];out=out+Tensor[proj,IdentityMatrix[dimrho/dimU],sys,desc].rho.Tensor[proj,IdentityMatrix[dimrho/dimU],sys,desc]];out]
 
-MeasurePOVM[rho_,POVM_,sys_,desc_]:=Module[{i,j,dimU,pos1},pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["MeasurePOVM: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=Dimensions[rho][[1]],Print["MeasurePOVM: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];Sum[dm[ket[i-1,dimU]]\[CircleTimes]PT[Tensor[POVM[[i]],IdentityMatrix[Tr[desc,Times]/Dimensions[POVM[[1]]][[1]]],sys,desc].rho,sys-1,desc],{i,1,dimU}]]
+MeasurePOVM[rho_,POVM_,sys_,desc_]:=Module[{i,j,dimU,pos1},pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["MeasurePOVM: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=Dimensions[rho][[1]],Print["MeasurePOVM: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];Sum[DM[Ket[i-1,dimU]]\[CircleTimes]PT[Tensor[POVM[[i]],IdentityMatrix[Tr[desc,Times]/Dimensions[POVM[[1]]][[1]]],sys,desc].rho,sys-1,desc],{i,1,dimU}]]
 
 POVMIsometry[rho_,POVM_,sys_,desc_]:=Module[{out,i,j,dimrho,dimU,proj,newdesc,pos1,kraus},dimrho=Dimensions[rho][[1]];pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["POVMIsometry: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=dimrho,Print["POVMIsometry: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];newdesc=ReplacePart[desc,pos1->dimU];kraus=Sum[Transpose[{UnitVector[dimU,i]}]\[CircleTimes]Transpose[{UnitVector[dimU,i]}]\[CircleTimes]Tensor[MatrixPower[POVM[[i]],1/2],IdentityMatrix[Tr[DeleteCases[desc*(sys-1),0],Times]],sys,desc],{i,1,dimU}];kraus.rho.CT[kraus]]
 
-ChoiState[set_]:=Module[{ent},ent=dm[Sum[(ket[i-1,Dimensions[set[[1]]][[2]]]\[CircleTimes]ket[i-1,Dimensions[set[[1]]][[2]]]),{i,1,Dimensions[set[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]set[[k]]).ent.(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]CT[set[[k]]]),{k,1,Dimensions[set][[1]]}]]
+ChoiState[set_]:=Module[{ent},ent=DM[Sum[(Ket[i-1,Dimensions[set[[1]]][[2]]]\[CircleTimes]Ket[i-1,Dimensions[set[[1]]][[2]]]),{i,1,Dimensions[set[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]set[[k]]).ent.(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]CT[set[[k]]]),{k,1,Dimensions[set][[1]]}]]
 
-ChoiState[set1_,set2_]:=Module[{ent},If[Dimensions[set1][[1]]!=Dimensions[set2][[1]],Print["ChoiState Error: sets have different numbers of elements"]];ent=dm[Sum[(ket[i-1,Dimensions[set1[[1]]][[2]]]\[CircleTimes]ket[i-1,Dimensions[set1[[1]]][[2]]]),{i,1,Dimensions[set1[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]set1[[k]]).ent.(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]CT[set2[[k]]]),{k,1,Dimensions[set1][[1]]}]]
+ChoiState[set1_,set2_]:=Module[{ent},If[Dimensions[set1][[1]]!=Dimensions[set2][[1]],Print["ChoiState Error: sets have different numbers of elements"]];ent=DM[Sum[(Ket[i-1,Dimensions[set1[[1]]][[2]]]\[CircleTimes]Ket[i-1,Dimensions[set1[[1]]][[2]]]),{i,1,Dimensions[set1[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]set1[[k]]).ent.(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]CT[set2[[k]]]),{k,1,Dimensions[set1][[1]]}]]
 
 ChoiChannel[state_,dA_,dB_]:=Module[{set1={},set2={},i,j,w1,w2,u,d,v},{u,d,v}=SingularValueDecomposition[state];For[i=1,i<=dA*dB,i++,If[Chop[d[[i,i]]]!=0,w1=(d[[i,i]])^(1/2)*Transpose[{Transpose[u][[i]]}];w2=(d[[i,i]])^(1/2)*Transpose[{Transpose[v][[i]]}];set1=Insert[set1,Transpose[Partition[Flatten[w1],dB]],-1];set2=Insert[set2,Transpose[Partition[Flatten[w2],dB]],-1]]];Chop[{set1,set2}]]
 
@@ -343,11 +343,11 @@ PickRandomMeasurement[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;lef
 
 RPickRandomMeasurement[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*RPickRandomUnitary[dim].RPickRandomRho[dim];While[Min[Chop[Eigenvalues[left-CT[cand].cand]]]<=0,cand=Random[]*tr*RPickRandomUnitary[dim].RPickRandomRho[dim]];out=Insert[out,cand,-1];left=left-CT[cand].cand;tr=tr-Tr[CT[cand].cand]];Insert[out,RPickRandomUnitary[dim].MatrixPower[left,1/2],-1]]
 
-PickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=PickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]bra[i-1,n]).iso,-1]];list1]
+PickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=PickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]Bra[i-1,n]).iso,-1]];list1]
 
-RPickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=RPickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]bra[i-1,n]).iso,-1]];list1]
+RPickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=RPickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]Bra[i-1,n]).iso,-1]];list1]
 
-FPickRandomChannel[dimA_,dimB_,n_,prec_]:=Module[{iso=FPickRandomIsometry[dimA,dimB*n,prec],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]bra[i-1,n]).iso,-1]];list1]
+FPickRandomChannel[dimA_,dimB_,n_,prec_]:=Module[{iso=FPickRandomIsometry[dimA,dimB*n,prec],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]Bra[i-1,n]).iso,-1]];list1]
 
 Dist[A_,B_]:=(1/2)*Tr[MatrixPower[CT[(A-B)].(A-B),1/2]]
 
