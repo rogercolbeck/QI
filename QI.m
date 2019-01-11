@@ -233,15 +233,11 @@ DM[vec_]:=vec.CT[vec]
 
 CircleTimes[a__]:=KroneckerProduct[a]
 
-BasisNotation[i_,desc_]:=Module[{bra,num,out,j,remain,remaindim},num=Dimensions[desc][[1]];out={};remain=i-1;remaindim=Tr[desc,Times];For[j=1,j<=num,j++,remaindim=remaindim/desc[[j]];bra[j]=Quotient[remain,remaindim];remain=remain-bra[j]*remaindim;out=Insert[out,bra[j],-1]];out];
-
-FromBasisNotation[state_,desc_]:=Module[{i,remaindim,num,out},num=Dimensions[desc][[1]];remaindim=Tr[desc,Times];out=1;For[i=1,i<=num,i++,remaindim=remaindim/desc[[i]];out=out+remaindim*state[[i]]];out];
-
-Tensor[rho_,sigma_,sys_,desc_]:=Module[{i,j,k,out,basi,basj,idpos,dimidpos,droppeddesc,droppedbasi,droppedbasj,otherpos,otherdroppeddesc,otherdroppedbasi,otherdroppedbasj,dimotherpos,newsys},newsys=3-sys;For[i=1,i<=Dimensions[rho][[1]]*Dimensions[sigma][[1]],i++,basi=BasisNotation[i,desc];For[j=1,j<=Dimensions[rho][[2]]*Dimensions[sigma][[2]],j++,basj=BasisNotation[j,desc];out[i,j]=0;idpos=Position[newsys,1];otherpos=Position[newsys,2];droppeddesc=desc;otherdroppeddesc=desc;droppedbasi=basi;droppedbasj=basj;otherdroppedbasi=basi;otherdroppedbasj=basj;dimidpos=Dimensions[idpos][[1]];dimotherpos=Dimensions[otherpos][[1]];For[k=dimidpos,k>=1,k--,droppedbasi=Drop[droppedbasi,idpos[[k]]];droppedbasj=Drop[droppedbasj,idpos[[k]]];droppeddesc=Drop[droppeddesc,idpos[[k]]]];For[k=dimotherpos,k>=1,k--,otherdroppedbasi=Drop[otherdroppedbasi,otherpos[[k]]];otherdroppedbasj=Drop[otherdroppedbasj,otherpos[[k]]];otherdroppeddesc=Drop[otherdroppeddesc,otherpos[[k]]]];out[i,j]=out[i,j]+sigma[[FromBasisNotation[otherdroppedbasi,otherdroppeddesc],FromBasisNotation[otherdroppedbasj,otherdroppeddesc]]]*rho[[FromBasisNotation[droppedbasi,droppeddesc],FromBasisNotation[droppedbasj,droppeddesc]]]]];CreateMatrix[out,Dimensions[rho][[1]]*Dimensions[sigma][[1]],Dimensions[rho][[2]]*Dimensions[sigma][[2]]]]
+Tensor[rho_,sigma_,sys_,desc_]:=Module[{},If[Dimensions[rho][[1]]!=Tr[DeleteCases[(2-sys)*desc,0],Times]||Dimensions[sigma][[1]]!=Tr[DeleteCases[(sys-1)*desc,0],Times],Print["Tensor: inputs have incorrect dimensions"]];ExchangeSystems[rho\[CircleTimes]sigma,Flatten[Join[Position[sys,1],Position[sys,2]]],desc[[Flatten[Join[Position[sys,1],Position[sys,2]]]]]]]
 
 TensorPower[M_,power_]:=Module[{i,R},For[i=1;R={{1}},i<=power,i++,R=CircleTimes[R,M]];R]
 
-ExchangeSystems[vec_,newpos_,desc_]:=Module[{i,j,out},If[Tr[desc,Times]!=Dimensions[vec][[1]],Print["ExchangeSystems: Wrong dimensions"];Break[]];out=ConstantArray[0,Dimensions[vec]];For[i=1,i<=Dimensions[vec][[1]],i++,For[j=1,j<=Dimensions[vec][[2]],j++,out[[1+FromDigits[Permute[IntDigs[i-1,desc],newpos],MixedRadix[Permute[desc,newpos]]],1+FromDigits[Permute[IntDigs[j-1,desc],newpos],MixedRadix[Permute[desc,newpos]]]]]=vec[[i,j]]]];out]
+ExchangeSystems[vec_,newpos_,desc_]:=Module[{list,i},If[Tr[desc,Times]!=Dimensions[vec][[1]]||(Dimensions[vec][[1]]!=Dimensions[vec][[2]]&&Dimensions[vec][[2]]!=1),Print["ExchangeSystems: Wrong dimensions"]];list={};For[i=0,i<=Dimensions[vec][[1]]-1,i++,list=Insert[list,1+FromDigits[Permute[IntDigs[i,desc],newpos],MixedRadix[Permute[desc,newpos]]],-1]];If[Dimensions[vec][[1]]==Dimensions[vec][[2]],Transpose[Permute[Transpose[Permute[vec,list]],list]],Permute[vec,list]]]
 
 DirectSum[a_,b_]:=Module[{dim1,dim2,out,m},dim1=Dimensions[a][[1]];dim2=Dimensions[b][[1]];out=Join[a,ConstantArray[0,{dim1,dim2}],2];out=Join[out,Join[ConstantArray[0,{dim2,dim1}],b,2]];out]
 
@@ -249,17 +245,13 @@ DirectSum[list_]:=Module[{dim1,dim2,out,m,number,i},number=Dimensions[list][[1]]
 
 QubitPartialTrace[M_,sys_]:=PT[M,Table[If[MemberQ[sys,i],0,1],{i,1,Log[2,Dimensions[M][[1]]]}],ConstantArray[2,Log[2,Dimensions[M][[1]]]]]
 
-PartialTrace[mat_,dim1_,dim2_,s_]:=Module[{m,out,row,i,j},If[(s==1||s==2)&&Dimensions[mat][[1]]==Dimensions[mat][[2]]==dim1*dim2,m=Partition[mat,{dim2,dim2}];If[s==2,out={};m=Transpose[m,{3,4,1,2}]],Print["PartialTrace: input error"]];Sum[m[[i,i]],{i,1,Dimensions[m][[1]]}]]
+PartialTrace[mat_,dim1_,dim2_,s_]:=Module[{},If[(s==1||s==2)&&Dimensions[mat][[1]]==Dimensions[mat][[2]]==dim1*dim2,If[s==1,PT[mat,{0,1},{dim1,dim2}],PT[mat,{1,0},{dim1,dim2}]],Print["PartialTrace: input error"]]]
 
-Group[keep_,desc_]:=Module[{dim,outkeep,outdesc,i,bit},outkeep={};outdesc={};bit=keep[[1]];dim=1;For[i=1,i<=Dimensions[keep][[1]],i++,If[keep[[i]]!=bit,outkeep=Insert[outkeep,bit,-1];bit=Abs[bit-1];outdesc=Insert[outdesc,dim,-1];dim=1];dim=dim*desc[[i]]];outkeep=Insert[outkeep,bit,-1];outdesc=Insert[outdesc,dim,-1];{outkeep,outdesc}];
+PT[mat_,keep_,desc_]:=Module[{dim,parts,mat2,i},dim=Tr[DeleteCases[keep*desc,0],Times];parts=Join[Flatten[Position[keep,0]],Flatten[Position[keep,1]]];mat2=Partition[ExchangeSystems[mat,Permute[Range[Length[desc]],parts],desc],{dim,dim}];Sum[mat2[[i,i]],{i,1,Tr[desc,Times]/dim}]]
 
-PTMiddle[mat_,desc_]:=Module[{df},df=Partition[ArrayFlatten[ArrayFlatten[TensorTranspose[Partition[Partition[mat,{desc[[3]],desc[[3]]}],{desc[[2]],desc[[2]]}],{3,4,1,2,5,6}]]],{desc[[1]]*desc[[3]],desc[[1]]*desc[[3]]}];Sum[df[[i,i]],{i,1,desc[[2]]}]]
+BasisForm[vec_,desc_]:=Module[{i,dim,v=Flatten[vec]},dim=Tr[desc,Times];For[i=1,i<=dim,i++,If[v[[i]]!=0,Print[v[[i]],"|"<>StringDrop[StringDrop[ToString[IntDigs[i-1,desc]],1],-1]<>">"]]]]
 
-PT[mat_,keep1_,desc1_]:=Module[{out,i,list,dim1,dim2,dim3,keep,desc},{keep,desc}=Group[keep1,desc1];If[Tr[desc,Times]!=Dimensions[mat][[1]]||Tr[desc,Times]!=Dimensions[mat][[2]],Print["PT: Wrong description or non square matrix"],If[Position[keep,0]=={},out=mat,If[Position[keep,1]=={},out={{Tr[mat]}},If[Dimensions[desc]=={2},out=PartialTrace[mat,desc[[1]],desc[[2]],Tr[Position[keep,0]]],list={};dim1=1;dim2=1;dim3=1;If[keep[[1]]==0,out=PT[PartialTrace[mat,desc[[1]],Tr[desc,Times]/desc[[1]],1],Drop[keep,{1}],Drop[desc,{1}]],If[keep[[1]]==1,out=PT[PTMiddle[mat,{desc[[1]],desc[[2]],Tr[desc,Times]/(desc[[1]]*desc[[2]])}],Drop[keep,{2}],Drop[desc,{2}]],Print["PT: Bad Matrix"]]]]]]];out]
-
-BasisForm[vec_,desc_]:=Module[{i,dim,v=Flatten[vec]},dim=Tr[desc,Times];For[i=1,i<=dim,i++,If[v[[i]]!=0,Print[v[[i]],"|"<>StringDrop[StringDrop[ToString[BasisNotation[i,desc]],1],-1]<>">"]]]]
-
-BasisFormS[vec_,desc_]:=Module[{i,dim,string,v=Flatten[vec]},string="";dim=Tr[desc,Times];For[i=1,i<=dim,i++,If[v[[i]]>0,string=string<>"+"<>ToString[v[[i]],FormatType->StandardForm]<>"|"<>StringDrop[StringDrop[ToString[BasisNotation[i,desc]],1],-1]<>"> ",If[v[[i]]<0,string=string<>ToString[v[[i]],FormatType->StandardForm]<>"|"<>StringDrop[StringDrop[ToString[BasisNotation[i,desc]],1],-1]<>"> "]]];string]
+BasisFormS[vec_,desc_]:=Module[{i,dim,string,v=Flatten[vec]},string="";dim=Tr[desc,Times];For[i=1,i<=dim,i++,If[v[[i]]>0,string=string<>"+"<>ToString[v[[i]],FormatType->StandardForm]<>"|"<>StringDrop[StringDrop[ToString[IntDigs[i-1,desc]],1],-1]<>"> ",If[v[[i]]<0,string=string<>ToString[v[[i]],FormatType->StandardForm]<>"|"<>StringDrop[StringDrop[ToString[IntDigs[i-1,desc]],1],-1]<>"> "]]];string]
 
 Purify[rho_]:=Module[{dim,vals,vecs},dim=Dimensions[rho][[1]];{vals,vecs}=Eigensystem[rho];Sum[(vals[[i]])^(1/2)*Transpose[{vecs[[i]]}]\[CircleTimes]Transpose[{vecs[[i]]}],{i,1,dim}]]
 
