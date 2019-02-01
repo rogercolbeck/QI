@@ -54,7 +54,9 @@ SchmidtDecomposition::usage="SchmidtDecomposition[v, desc] gives the Schmidt dec
 
 DiagonalizingUnitary::usage="DiagonalizingUnitary[M] outputs {U, Diag} where U is the unitary that diagonalizes normal matrix M to Diag."
 
-EigensystemExact::usage="EigensystemExact[M] outputs as Eigensystem, except that it ensures orthonormality of the eigenvectors even for exact inputs."
+EigenvaluesExact::usage="EigenvaluesExact[M,(prec)] outputs as Eigenvalues, except that it orders the outputs first by real and then imaginary part treating these as equal if within prec of each other (default that of Chop[])."
+
+EigensystemExact::usage="EigensystemExact[M,(prec)] outputs as Eigensystem, except that it orders the outputs first by real and then imaginary part treating these as equal if within prec of each other (default that of Chop[]) and it ensures orthonormality of the eigenvectors even for exact inputs."
 
 SimultaneouslyDiagonalize::usage="SimultaneouslyDiagonalize[A, B] give a unitary U that diagonalizes both commuting normal matrices A and B."
 
@@ -262,6 +264,8 @@ SchmidtDecomposition[vec_,sys_]:=Module[{coeffs,vecsa,vecsb,u,w,v,vecmat,i},If[T
 DiagonalizingUnitary[M_]:=Module[{vals,vecs,i,U},{vals,vecs}=Eigensystem[M];U={};For[i=1,i<=Dimensions[M][[1]],i++,U=Insert[U,Normalize[vecs[[i]]],-1]];{Transpose[U],DiagonalMatrix[vals]}]      
 
 OrderingF[vals_,prec_:Null]:=Module[{blocksizes,ord,ord2,v,i,start,out,block,blockv},v=vals;ord=Ordering[Map[Re,v]];blocksizes=Transpose[Tally[Map[Re,v[[ord]]],If[NumericQ[prec],Chop[#1-#2,prec]==0&,Chop[#1-#2]==0&]]][[2]];start=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[ord,{start,start-1+blocksizes[[i]]}];blockv=Take[v[[ord]],{start,start-1+blocksizes[[i]]}];ord2=Ordering[Map[Im,blockv]];block=block[[ord2]];start = start + blocksizes[[i]];out=Join[out,block]];out]
+
+EigenvaluesExact[m_,prec_:Null]:=Module[{vals,i,blocksizes,ord,out,block,block2,startrow},vals=Eigenvalues[m];Off[Tally::smtst];ord=OrderingF[vals];On[Tally::smtst];vals[[ord]]]
 
 EigensystemExact[m_,prec_:Null]:=Module[{vals,vecs,i,blocksizes,ord,out,block,block2,startrow},{vals,vecs}=Eigensystem[m];Off[Tally::smtst];ord=OrderingF[vals];vals=vals[[ord]];vecs=vecs[[ord]];blocksizes=Transpose[Tally[vals,If[NumericQ[prec], Chop[#1 - #2, prec] == 0 &,Chop[#1 - #2] == 0 &]]][[2]];On[Tally::smtst];startrow = 1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[vecs,{startrow,startrow-1+blocksizes[[i]]}];block2=Simplify[Orthogonalize[block]];block2=Simplify[Map[Normalize[#]&,block2]];startrow = startrow + blocksizes[[i]];out=Join[out,block2]];{vals,out}]
 
