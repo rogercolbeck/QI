@@ -94,11 +94,19 @@ RPickRandomPsi2::usage="RPickRandomPsi2[n] chooses a random real pure state in d
 
 FPickRandomPsi2::usage="FPickRandomPsi2[n, prec] chooses a random real pure state with exact values in dimension n."
 
+PickRandomPsiHaar::usage="PickRandomPsiHaar[n] chooses a random pure state in dimension n with Haar distribution."
+
+RPickRandomPsiHaar::usage="RPickRandomPsiHaar[n] chooses a random pure state in dimension n with Haar distribution."
+
 PickRandomUnitary::usage="PickRandomUnitary[n] chooses a random unitary in dimension n."
 
 RPickRandomUnitary::usage="RPickRandomUnitary[n] chooses a random real unitary in dimension n."
 
 FPickRandomUnitary::usage="FPickRandomUnitary[n, prec] chooses a random real unitary with exact values in dimension n."
+
+PickRandomUnitaryHaar::usage="PickRandomUnitaryHaar[n] chooses a random unitary in dimension n with Haar distribution."
+
+RPickRandomUnitaryHaar::usage="RPickRandomUnitaryHaar[n] chooses a real random unitary in dimension n with the analogue of the Haar distribution."
 
 PickRandomIsometry::usage="PickRandomIsometry[dim1, dim2] chooses a random isometry from dimension dim1 to dim2."
 
@@ -297,15 +305,15 @@ ChannelCompress[chan_]:=Module[{n,dA,dB},{n,dB,dA}=Dimensions[chan];ChoiChannel[
 
 ExtremeChannelQ[list_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]].list[[j]]],-1]]];If[MatrixRank[Chop[newlist]]==dim^2,True,False]]
 
-PickRandomPsi[n_]:=Module[{psi,list1,i,R,phi},list1={};For[i=1,i<=n,i++,phi=Random[]*2*\[Pi];list1=Insert[list1,R[i,1]->Random[]*(Cos[phi]+I*Sin[phi]),-1]];psi=CreateMatrix[R,n,1]/.list1;psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]
+PickRandomPsi[n_]:=Module[{psi,i,phi},psi={};For[i=1,i<=n,i++,phi=Random[]*2*\[Pi];psi=Insert[psi,{Random[]*(Cos[phi]+I*Sin[phi])},-1]];psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]
 
-RPickRandomPsi[n_]:=Module[{psi,list1,i,R},list1={};For[i=1,i<=n,i++,list1=Insert[list1,R[i,1]->Random[],-1]];psi=CreateMatrix[R,n,1]/.list1;psi/(Tr[Transpose[psi].psi])^(1/2)]
+RPickRandomPsi[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{Random[]},-1]];psi/(Tr[Transpose[psi].psi])^(1/2)]
 
-RPickRandomPsip[n_,rank_]:=Module[{psi,list1,i,R},list1={};For[i=1,i<=n,i++,If[i<=rank,list1=Insert[list1,R[i,1]->Random[],-1],list1=Insert[list1,R[i,1]->0,-1]]];psi=CreateMatrix[R,n,1]/.list1;psi/(Tr[CT[psi].psi])^(1/2)]
+RPickRandomPsip[n_,rank_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,If[i<=rank,psi=Insert[psi,{Random[]},-1],psi=Insert[psi,0,-1]]];psi/(Tr[CT[psi].psi])^(1/2)]
 
-FPickRandomPsi[n_,prec_]:=Module[{psi,list1,i,R},list1={};For[i=1,i<=n,i++,list1=Insert[list1,R[i,1]->1+Random[Integer,prec-1]/(1+Random[Integer,prec-1]),-1]];psi=CreateMatrix[R,n,1]/.list1;psi/(Tr[Transpose[psi].psi])^(1/2)]
+FPickRandomPsi[n_,prec_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{1+Random[Integer,prec-1]/(1+Random[Integer,prec-1])},-1]];psi/(Tr[Transpose[psi].psi])^(1/2)]
 
-FPickRandomPsi[n_,prec_,rank_]:=Module[{psi,list1,i,R},list1={};For[i=1,i<=n,i++,If[i<=rank,list1=Insert[list1,R[i,1]->1+Random[Integer,prec-1]/(1+Random[Integer,prec-1]),-1],list1=Insert[list1,R[i,1]->0,-1]]];psi=CreateMatrix[R,n,1]/.list1;psi/(Tr[Transpose[psi].psi])^(1/2)]
+FPickRandomPsir[n_,prec_,rank_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,If[i<=rank,psi=Insert[psi,{1+Random[Integer,prec-1]/(1+Random[Integer,prec-1])},-1],psi=Insert[psi,0,-1]]];psi/(Tr[Transpose[psi].psi])^(1/2)]
 
 PickRandomPsi2[n_]:=Module[{i,tot=1,out={},re,phi},For[i=1,i<=n-1,i++,re=RandomReal[tot];tot=tot-re;phi=Random[]*2*\[Pi];out=Insert[out,re^(1/2)*(Cos[phi]+I*Sin[phi]),-1]];phi=Random[]*2*\[Pi];out=Insert[out,tot^(1/2)*(Cos[phi]+I*Sin[phi]),-1];Transpose[{out}]]
 
@@ -313,11 +321,19 @@ RPickRandomPsi2[n_]:=Module[{i,tot=1,out={},re},For[i=1,i<=n-1,i++,re=RandomReal
 
 FPickRandomPsi2[n_,prec_]:=Module[{i,tot=1,out={},re},For[i=1,i<=n-1,i++,re=1+Random[Integer,prec-1];re=tot*re/(re+Random[Integer,prec-1]);tot=tot-re;out=Insert[out,re^(1/2),-1]];out=Insert[out,tot^(1/2),-1];Transpose[{out}]]
 
+PickRandomPsiHaar[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]]},-1]];psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]
+
+RPickRandomPsiHaar[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]]},-1]];Abs[psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]]
+
 PickRandomUnitary[n_]:=Module[{i,v,M},M={};For[i=1,i<=n,i++,v[i]=Flatten[PickRandomPsi[n]];M=Insert[M,v[i],-1]];Orthogonalize[M]]
 
 RPickRandomUnitary[n_]:=Module[{i,v,M},M={};For[i=1,i<=n,i++,v[i]=Flatten[RPickRandomPsi[n]];M=Insert[M,v[i],-1]];Orthogonalize[M]]
 
 FPickRandomUnitary[n_,prec_]:=Module[{i,v,M},M={};For[i=1,i<=n,i++,v[i]=Flatten[FPickRandomPsi[n,prec]];M=Insert[M,v[i],-1]];Orthogonalize[M]]
+
+PickRandomUnitaryHaar[n_]:=Module[{M},M=Table[RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]],n,n];Orthogonalize[M]]
+
+RPickRandomUnitaryHaar[n_]:=Module[{M},M=Table[RandomVariate[NormalDistribution[]],n,n];Orthogonalize[M]]
 
 PickRandomIsometry[dim1_,dim2_]:=Module[{i,M1,M2},M1={};M2={};For[i=1,i<=dim1,i++,M1=Insert[M1,Flatten[PickRandomPsi[dim1]],-1];M2=Insert[M2,Flatten[PickRandomPsi[dim2]],-1]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}].{M1[[i]]},{i,1,dim1}]]
 
@@ -335,7 +351,7 @@ RPickRandomRho[n_,rank_]:=Module[{U},U=RPickRandomUnitary[n];Chop[U.DiagonalMatr
 
 FPickRandomRho[n_,prec_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U.DiagonalMatrix[Flatten[(FPickRandomPsi[n,prec])^2]].CT[U]]]                
 
-FPickRandomRho[n_,prec_,rank_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U.DiagonalMatrix[Flatten[(FPickRandomPsi[n,prec,rank])^2]].CT[U]]]   
+FPickRandomRho[n_,prec_,rank_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U.DiagonalMatrix[Flatten[(FPickRandomPsir[n,prec,rank])^2]].CT[U]]]   
 
 PickRandomPOVM[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*PickRandomRho[dim];While[Min[Chop[Eigenvalues[left-cand]]]<=0,cand=Random[]*tr*PickRandomRho[dim]];out=Insert[out,cand,-1];left=left-cand;tr=tr-Tr[cand]];Insert[out,left,-1]]
     
