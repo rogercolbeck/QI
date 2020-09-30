@@ -265,7 +265,7 @@ BasisForm[vec_,desc_]:=Module[{i,dim,v=Flatten[vec]},dim=Tr[desc,Times];For[i=1,
 
 BasisFormS[vec_,desc_]:=Module[{i,dim,string,v=Flatten[vec]},string="";dim=Tr[desc,Times];For[i=1,i<=dim,i++,If[v[[i]]>0,string=string<>"+"<>ToString[v[[i]],FormatType->StandardForm]<>"|"<>StringDrop[StringDrop[ToString[IntDigs[i-1,desc]],1],-1]<>"> ",If[v[[i]]<0,string=string<>ToString[v[[i]],FormatType->StandardForm]<>"|"<>StringDrop[StringDrop[ToString[IntDigs[i-1,desc]],1],-1]<>"> "]]];string]
 
-Purify[rho_]:=Module[{dim,vals,vecs},dim=Dimensions[rho][[1]];{vals,vecs}=Eigensystem[rho];Sum[(vals[[i]])^(1/2)*Transpose[{vecs[[i]]}]\[CircleTimes]Transpose[{vecs[[i]]}],{i,1,dim}]]
+Purify[rho_]:=Module[{dim,vals,vecs},dim=Dimensions[rho][[1]];{vals,vecs}=Eigensystem[rho];vecs=Orthogonalize[vecs];Sum[(vals[[i]])^(1/2)*Transpose[{vecs[[i]]}]\[CircleTimes]Transpose[{vecs[[i]]}],{i,1,dim}]]
 
 SchmidtDecomposition[vec_,sys_]:=Module[{coeffs,vecsa,vecsb,u,w,v,vecmat,i},If[Tr[sys,Times]!=Dimensions[vec][[1]],Print["SchmidtDecomposition: Wrong dimensions"];Break[]];vecmat=Partition[Flatten[vec],sys[[2]]];{u,w,v}=SingularValueDecomposition[vecmat];coeffs={};vecsa={};vecsb={};For[i=1,i<=Min[sys],i++,coeffs=Insert[coeffs,w[[i,i]],-1];vecsa=Insert[vecsa,Transpose[{Transpose[u][[i]]}],-1];vecsb=Insert[vecsb,Transpose[{CT[v][[i]]}],-1]];{coeffs,vecsa,vecsb}]
 
