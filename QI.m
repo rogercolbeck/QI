@@ -80,7 +80,7 @@ ChoiChannel::usage="ChoiChannel[state, dA, dB] computes the channel correspondin
 
 ChannelCompress::usage="ChannelCompress[channel] takes a Kraus representation of a channel and returns another Kraus representation of the channel that may have fewer Kraus operators."
 
-ExtremeChannelQ::usage="ExtremeChannelQ[channel] checks whether the channel is extremal or not."
+ExtremeChannelQ::usage="ExtremeChannelQ[channel, (tol)] checks whether the channel is extremal or not. tol is an optional argument specifying the tolerance for numerical singular values to be treated as zero."
 
 PickRandomPsi::usage="PickRandomPsi[n] chooses a random pure state in dimension n."
 
@@ -303,7 +303,9 @@ ChoiChannel[state_,dA_,dB_]:=Module[{set1={},set2={},i,j,w1,w2,u,d,v},{u,d,v}=Si
 
 ChannelCompress[chan_]:=Module[{n,dA,dB},{n,dB,dA}=Dimensions[chan];ChoiChannel[ChoiState[chan], dA, dB][[1]]]
 
-ExtremeChannelQ[list_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]].list[[j]]],-1]]];If[MatrixRank[Chop[newlist]]==dim^2,True,False]]
+ExtremeChannelQ[list_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]].list[[j]]],-1]]];If[MatrixRank[newlist]==dim^2,True,False]]
+
+ExtremeChannelQ[list_,tol_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]].list[[j]]],-1]]];If[Dimensions[DeleteCases[Chop[SingularValueList[newlist],tol],0]][[1]]==dim^2,True,False]]
 
 PickRandomPsi[n_]:=Module[{psi,i,phi},psi={};For[i=1,i<=n,i++,phi=Random[]*2*\[Pi];psi=Insert[psi,{Random[]*(Cos[phi]+I*Sin[phi])},-1]];psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]
 
