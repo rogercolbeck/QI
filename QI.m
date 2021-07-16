@@ -269,7 +269,7 @@ Purify[rho_]:=Module[{dim,vals,vecs},dim=Dimensions[rho][[1]];{vals,vecs}=Eigens
 
 SchmidtDecomposition[vec_,sys_]:=Module[{coeffs,vecsa,vecsb,u,w,v,vecmat,i},If[Tr[sys,Times]!=Dimensions[vec][[1]],Print["SchmidtDecomposition: Wrong dimensions"];Break[]];vecmat=Partition[Flatten[vec],sys[[2]]];{u,w,v}=SingularValueDecomposition[vecmat];coeffs={};vecsa={};vecsb={};For[i=1,i<=Min[sys],i++,coeffs=Insert[coeffs,w[[i,i]],-1];vecsa=Insert[vecsa,Transpose[{Transpose[u][[i]]}],-1];vecsb=Insert[vecsb,Transpose[{CT[v][[i]]}],-1]];{coeffs,vecsa,vecsb}]
 
-DiagonalizingUnitary[M_]:=Module[{vals,vecs,i,U},{vals,vecs}=Eigensystem[M];U={};For[i=1,i<=Dimensions[M][[1]],i++,U=Insert[U,Normalize[vecs[[i]]],-1]];{Transpose[U],DiagonalMatrix[vals]}]      
+DiagonalizingUnitary[M_]:=Module[{vals,vecs,i,U},{vals,vecs}=Eigensystem[M];vecs=Orthogonalize[vecs];U={};For[i=1,i<=Dimensions[M][[1]],i++,U=Insert[U,Normalize[vecs[[i]]],-1]];{Transpose[U],DiagonalMatrix[vals]}]      
 
 OrderingF[vals_,prec_:Null]:=Module[{blocksizes,ord,ord2,v,i,start,out,block,blockv},v=vals;ord=Ordering[Map[Re,v]];blocksizes=Transpose[Tally[Map[Re,v[[ord]]],If[NumericQ[prec],Chop[N[#1-#2],prec]==0&,Chop[N[#1-#2]]==0&]]][[2]];(* note that numerical parts are taken before Tally *) start=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[ord,{start,start-1+blocksizes[[i]]}];blockv=Take[v[[ord]],{start,start-1+blocksizes[[i]]}];ord2=Ordering[Map[Im,blockv]];block=block[[ord2]];start = start + blocksizes[[i]];out=Join[out,block]];out]
 
