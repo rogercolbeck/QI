@@ -421,7 +421,7 @@ NegInstances[M_,i_]:=Module[{j,out={}},For[j=1,j<=Dimensions[M][[1]],j++,If[M[[j
 
 Elim[M_, b_, i_]:=Module[{out, bout, Mp, bp, j, k, insta, instb, c1, c2, d}, out = {};bout = {}; Mp = Insert[M, UnitVector[Dimensions[M][[2]], i], -1];bp = Insert[b, 0, -1];For[j = 1, j <= Dimensions[Mp][[1]], j++,If[Mp[[j]][[i]] == 0, out = Insert[out, Drop[Mp[[j]], {i}], -1];bout=Insert[bout,bp[[j]],-1]]];insta=PosInstances[Mp,i];instb=NegInstances[Mp,i];For[j=1,j<=Dimensions[insta][[1]],j++,For[k=1,k<=Dimensions[instb][[1]],k++,c1=Mp[[insta[[j]]]][[i]];c2=-Mp[[instb[[k]]]][[i]];d=LCM[c1,c2];out=Insert[out,Drop[d/c1*Mp[[insta[[j]]]]+d/c2*Mp[[instb[[k]]]], {i}], -1];bout=Insert[bout,d/c1*bp[[insta[[j]]]] + d/c2*bp[[instb[[k]]]], -1]]];{out,bout}]
 
-IntDigs[num_,bases_]:=Module[{out,i,prod,prevprod,nm=num},out=Table[0,{Dimensions[bases][[1]]}];prod=1;For[i=1,i<=Dimensions[bases][[1]],i++,prevprod=prod;prod=bases[[-i]];out=ReplacePart[out,-i->Mod[nm,prod]];nm=(nm-Mod[nm,prod])/bases[[-i]]];out]
+IntDigs[num_,bases_]:=Module[{out,i,prod,nm=num},out=Table[0,{Dimensions[bases][[1]]}];prod=1;For[i=1,i<=Dimensions[bases][[1]],i++,prod=bases[[-i]];out=ReplacePart[out,-i->Mod[nm,prod]];nm=(nm-Mod[nm,prod])/bases[[-i]]];out]
 
 Progress[i_,imin_,imax_,num_]:=If[Floor[num*(i-imin)/(imax-imin)]-Floor[num*(i-imin-1)/(imax-imin)]==1,Print[100*Floor[num*(i-imin)/(imax-imin)]/num,"%"]]
 
