@@ -265,7 +265,7 @@ Purify[rho_]:=Module[{dim,vals,vecs},dim=Dimensions[rho][[1]];{vals,vecs}=Eigens
 
 SchmidtDecomposition[vec_,sys_]:=Module[{coeffs,vecsa,vecsb,u,w,v,vecmat,i},If[Tr[sys,Times]!=Dimensions[vec][[1]],Print["SchmidtDecomposition: Wrong dimensions"];Break[]];vecmat=Partition[Flatten[vec],sys[[2]]];{u,w,v}=SingularValueDecomposition[vecmat];coeffs={};vecsa={};vecsb={};For[i=1,i<=Min[sys],i++,coeffs=Insert[coeffs,w[[i,i]],-1];vecsa=Insert[vecsa,Transpose[{Transpose[u][[i]]}],-1];vecsb=Insert[vecsb,Transpose[{CT[v][[i]]}],-1]];{coeffs,vecsa,vecsb}]
 
-DiagonalizingUnitary[M_]:=Module[{vals,vecs,i,U},{vals,vecs}=Eigensystem[M];U={};For[i=1,i<=Dimensions[M][[1]],i++,U=Insert[U,Normalize[vecs[[i]]],-1]];{Transpose[U],DiagonalMatrix[vals]}]      
+DiagonalizingUnitary[M_]:=Module[{vals,vecs,i,U},{vals,vecs}=Eigensystem[M];vecs=Orthogonalize[vecs];U={};For[i=1,i<=Dimensions[M][[1]],i++,U=Insert[U,Normalize[vecs[[i]]],-1]];{Transpose[U],DiagonalMatrix[vals]}]      
 
 OrderingF[vals_,prec_:Null]:=Module[{blocksizes,ord,ord2,v,i,start,out,block,blockv},v=vals;ord=Ordering[Map[Re,v]];blocksizes=Transpose[Tally[Map[Re,v[[ord]]],If[NumericQ[prec],Chop[N[#1-#2],prec]==0&,Chop[N[#1-#2]]==0&]]][[2]];(* note that numerical parts are taken before Tally *) start=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[ord,{start,start-1+blocksizes[[i]]}];blockv=Take[v[[ord]],{start,start-1+blocksizes[[i]]}];ord2=Ordering[Map[Im,blockv]];block=block[[ord2]];start = start + blocksizes[[i]];out=Join[out,block]];out]
 
@@ -419,7 +419,7 @@ NegInstances[M_,i_]:=Module[{j,out={}},For[j=1,j<=Dimensions[M][[1]],j++,If[M[[j
 Options[Elim]={AddId->True};
 Elim[M_, b_, i_,OptionsPattern[]]:=Module[{out, bout, Mp, bp, j, k, insta, instb, c1, c2, d}, out = {};bout = {}; If[OptionValue[AddId],Mp = Insert[M, UnitVector[Dimensions[M][[2]], i], -1];bp = Insert[b, 0, -1],Mp=M;bp=b];For[j = 1, j <= Dimensions[Mp][[1]], j++,If[Mp[[j]][[i]] == 0, out = Insert[out, Drop[Mp[[j]], {i}], -1];bout=Insert[bout,bp[[j]],-1]]];insta=PosInstances[Mp,i];instb=NegInstances[Mp,i];For[j=1,j<=Dimensions[insta][[1]],j++,For[k=1,k<=Dimensions[instb][[1]],k++,c1=Mp[[insta[[j]]]][[i]];c2=-Mp[[instb[[k]]]][[i]];d=LCM[c1,c2];out=Insert[out,Drop[d/c1*Mp[[insta[[j]]]]+d/c2*Mp[[instb[[k]]]], {i}], -1];bout=Insert[bout,d/c1*bp[[insta[[j]]]] + d/c2*bp[[instb[[k]]]], -1]]];{out,bout}]
 
-IntDigs[num_,bases_]:=Module[{out,i,prod,prevprod,nm=num},out=Table[0,{Dimensions[bases][[1]]}];prod=1;For[i=1,i<=Dimensions[bases][[1]],i++,prevprod=prod;prod=bases[[-i]];out=ReplacePart[out,-i->Mod[nm,prod]];nm=(nm-Mod[nm,prod])/bases[[-i]]];out]
+IntDigs[num_,bases_]:=Module[{out,i,prod,nm=num},out=Table[0,{Dimensions[bases][[1]]}];prod=1;For[i=1,i<=Dimensions[bases][[1]],i++,prod=bases[[-i]];out=ReplacePart[out,-i->Mod[nm,prod]];nm=(nm-Mod[nm,prod])/bases[[-i]]];out]
 
 Progress[i_,imin_,imax_,num_]:=If[Floor[num*(i-imin)/(imax-imin)]-Floor[num*(i-imin-1)/(imax-imin)]==1,Print[100*Floor[num*(i-imin)/(imax-imin)]/num,"%"]]
 
