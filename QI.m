@@ -2,19 +2,15 @@
 
 (*
    Copyright 2019 (https://github.com/rogercolbeck/QI)
-
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
-
        http://www.apache.org/licenses/LICENSE-2.0
-
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
 *)
 
 
@@ -413,13 +409,15 @@ RemoveDuplicateConstraints[M_,b_]:=Module[{i,j,Mp,Mg,Ml,bp,gathered,max,maxpos,m
 
 Prep[M_,b_]:=Module[{out,bout,i,j},If[Dimensions[Dimensions[b]]!={2},Print["Prep: Error, expecting b to have the form {{b1,s1},{b2,s2},...}"]];out={};bout={};For[i=1,i<=Dimensions[M][[1]],i++,If[b[[i]][[2]]==0,out=Insert[out,M[[i]],-1];out=Insert[out,-M[[i]],-1];bout=Insert[bout,b[[i]][[1]],-1];bout=Insert[bout,-b[[i]][[1]],-1],If[b[[i]][[2]]==1,out=Insert[out,M[[i]],-1];bout=Insert[bout,b[[i]][[1]],-1],If[b[[i]][[2]]==-1,out=Insert[out,-M[[i]],-1];bout=Insert[bout,-b[[i]][[1]],-1]]]]];{out,bout}]
 
-FourierMotzkin[M_, b_, elim_]:=Module[{out, bout, outp, i, j, min, mini, na, nb, el},If[Dimensions[Dimensions[b]] == {1}, out = M; bout = b,Print["FourierMotzkin: Error, expecting b to have the form {b1,b2,...}.  Use Prep[M,b] first if in the form {{b1,s1},{b2,s2},...}"]];el = Sort[elim];For[j = 1, j <= Dimensions[elim][[1]], j++, min = \[Infinity];mini = 1; outp = Join[out, IdentityMatrix[Dimensions[out][[2]]]];For[i = 1, i <= Dimensions[el][[1]], i++,na = Dimensions[PosInstances[outp, el[[i]]]][[1]];nb = Dimensions[NegInstances[outp, el[[i]]]][[1]];If[Dimensions[outp][[1]] - na - nb + na*nb < min,min = Dimensions[outp][[1]] - na - nb + na*nb; mini = i]];{out,bout} = Elim[out, bout, el[[mini]]]; {out, bout}=RemoveIneqConstraints[out, bout]; el = Drop[el, {mini}];el=el+PadRight[PadLeft[{}, mini - 1], Dimensions[el], -1]]; {out,bout}]
+Options[FourierMotzkin]={AddId->True,Simp->True};
+FourierMotzkin[M_,b_,elim_,OptionsPattern[]]:=Module[{out,bout,outp,i,j,min,mini,na,nb,el},If[Dimensions[Dimensions[b]]=={1},out=M;bout=b,Print["FourierMotzkin: Error, expecting b to have the form {b1,b2,...}.  Use Prep[M,b] first if in the form {{b1,s1},{b2,s2},...}"]];el=Sort[elim];For[j=1,j<=Dimensions[elim][[1]],j++,min=\[Infinity];mini=1;If[OptionValue[AddId],outp=Join[out,IdentityMatrix[Dimensions[out][[2]]]],outp=out];For[i=1,i<=Dimensions[el][[1]],i++,na=Dimensions[PosInstances[outp,el[[i]]]][[1]];nb=Dimensions[NegInstances[outp,el[[i]]]][[1]];If[Dimensions[outp][[1]]-na-nb+na*nb<min,min=Dimensions[outp][[1]]-na-nb+na*nb;mini=i]];{out,bout}=Elim[out,bout,el[[mini]],AddId->OptionValue[AddId]];If[OptionValue[Simp],{out,bout}=RemoveIneqConstraints[out,bout]];el=Drop[el,{mini}];el=el+PadRight[PadLeft[{},mini-1],Dimensions[el],-1]];{out,bout}]
 
 PosInstances[M_,i_]:=Module[{j,out={}},For[j=1,j<=Dimensions[M][[1]],j++,If[M[[j]][[i]]>0,out=Insert[out,j,-1]]];out]
 
 NegInstances[M_,i_]:=Module[{j,out={}},For[j=1,j<=Dimensions[M][[1]],j++,If[M[[j]][[i]]<0,out=Insert[out,j,-1]]];out]
 
-Elim[M_, b_, i_]:=Module[{out, bout, Mp, bp, j, k, insta, instb, c1, c2, d}, out = {};bout = {}; Mp = Insert[M, UnitVector[Dimensions[M][[2]], i], -1];bp = Insert[b, 0, -1];For[j = 1, j <= Dimensions[Mp][[1]], j++,If[Mp[[j]][[i]] == 0, out = Insert[out, Drop[Mp[[j]], {i}], -1];bout=Insert[bout,bp[[j]],-1]]];insta=PosInstances[Mp,i];instb=NegInstances[Mp,i];For[j=1,j<=Dimensions[insta][[1]],j++,For[k=1,k<=Dimensions[instb][[1]],k++,c1=Mp[[insta[[j]]]][[i]];c2=-Mp[[instb[[k]]]][[i]];d=LCM[c1,c2];out=Insert[out,Drop[d/c1*Mp[[insta[[j]]]]+d/c2*Mp[[instb[[k]]]], {i}], -1];bout=Insert[bout,d/c1*bp[[insta[[j]]]] + d/c2*bp[[instb[[k]]]], -1]]];{out,bout}]
+Options[Elim]={AddId->True};
+Elim[M_, b_, i_,OptionsPattern[]]:=Module[{out, bout, Mp, bp, j, k, insta, instb, c1, c2, d}, out = {};bout = {}; If[OptionValue[AddId],Mp = Insert[M, UnitVector[Dimensions[M][[2]], i], -1];bp = Insert[b, 0, -1],Mp=M;bp=b];For[j = 1, j <= Dimensions[Mp][[1]], j++,If[Mp[[j]][[i]] == 0, out = Insert[out, Drop[Mp[[j]], {i}], -1];bout=Insert[bout,bp[[j]],-1]]];insta=PosInstances[Mp,i];instb=NegInstances[Mp,i];For[j=1,j<=Dimensions[insta][[1]],j++,For[k=1,k<=Dimensions[instb][[1]],k++,c1=Mp[[insta[[j]]]][[i]];c2=-Mp[[instb[[k]]]][[i]];d=LCM[c1,c2];out=Insert[out,Drop[d/c1*Mp[[insta[[j]]]]+d/c2*Mp[[instb[[k]]]], {i}], -1];bout=Insert[bout,d/c1*bp[[insta[[j]]]] + d/c2*bp[[instb[[k]]]], -1]]];{out,bout}]
 
 IntDigs[num_,bases_]:=Module[{out,i,prod,prevprod,nm=num},out=Table[0,{Dimensions[bases][[1]]}];prod=1;For[i=1,i<=Dimensions[bases][[1]],i++,prevprod=prod;prod=bases[[-i]];out=ReplacePart[out,-i->Mod[nm,prod]];nm=(nm-Mod[nm,prod])/bases[[-i]]];out]
 
