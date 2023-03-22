@@ -275,9 +275,9 @@ EigensystemExact[m_,prec_:Null]:=Module[{vals,vecs,i,blocksizes,ord,out,block,bl
 
 SimultaneouslyDiagonalize[A_,B_,precision_:Null]:=Module[{vals,vecs,unitary,blocksizes,startrow,out,i,Bblock,vals2,vec2,unitary2,A1,B1,mA,nA,mB,nB,valA,valB,vec,ord},{mA,nA}=Dimensions[A];{mB,nB}=Dimensions[B];If[A.B-B.A!=ConstantArray[0,{mA,nA}],A1=Chop[A];B1=Chop[B],A1=A;B1=B,A1=Simplify[A];B1=Simplify[B]];{vals,unitary}=EigensystemExact[A1,precision];blocksizes=Transpose[Tally[vals,If[NumericQ[precision],Chop[N[#1-#2],precision]==0&,Chop[N[#1-#2]]==0&]]][[2]];startrow=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,Bblock=Chop[Take[unitary.B1.CT[unitary],{startrow,startrow-1+blocksizes[[i]]},{startrow,startrow-1+blocksizes[[i]]}]];startrow=startrow+blocksizes[[i]];If[Bblock==DiagonalMatrix[Diagonal[Bblock]],unitary2=IdentityMatrix[Dimensions[Bblock][[1]]],{vals2,unitary2}=EigensystemExact[Bblock,precision]];If[i==1,out=unitary2,out=DirectSum[out,unitary2]]];out=out.unitary;{valA,valB,vec}={Diagonal[out.A1.CT[out]],Diagonal[out.B1.CT[out]],out};(* The next If is not needed, but can be useful to flag problems *)If[Chop[N[CT[vec].DiagonalMatrix[valA].vec-A1]]!=ConstantArray[0,{mA,nA}]||Chop[N[CT[vec].DiagonalMatrix[valB].vec - B1]]!=ConstantArray[0, {mA, nA}],Print["Error in SimultaneouslyDiagonalize with inputs ",A,", ",B,", ",precision]];{valA,valB,vec}]
 
-BlochSphere[rho_]:=Module[{x,y,z},x=Tr[rho.\[Sigma][1]];y=Tr[rho.\[Sigma][2]];z=Tr[rho.\[Sigma][3]];{{x},{y},{z}}]     
+BlochSphere[rho_]:=Module[{x,y,z},x=Tr[rho.\[Sigma][1]];y=Tr[rho.\[Sigma][2]];z=Tr[rho.\[Sigma][3]];{x,y,z}]     
 
-FromBlochSphere[{{x_},{y_},{z_}}]:=Simplify[(1/2)*(IdentityMatrix[2]+x*\[Sigma][1]+y*\[Sigma][2]+z*\[Sigma][3])]
+FromBlochSphere[{x_,y_,z_}]:=Simplify[(1/2)*(IdentityMatrix[2]+x*\[Sigma][1]+y*\[Sigma][2]+z*\[Sigma][3])]
 
 AppendCols[m_]:=Module[{vec,mat,dim},(dim=Dimensions[m];mat=Transpose[m];mat=Join[mat,Table[ConstantArray[0,dim[[1]]],{dim[[1]]-dim[[2]]}]];vec=NullSpace[mat];mat[[-Length[vec];;-1]]=Conjugate[vec];mat=Map[Normalize,mat];Transpose[mat])]
 
