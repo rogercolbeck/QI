@@ -40,6 +40,8 @@ PartialTrace::usage="PartialTrace[M, dim1, dim2, tr] traces out the tr=1 or tr=2
 
 PT::usage="PT[M, keep, desc] traces out the systems specified by keep of M which is composed of subsystems of sizes desc. Components of keep equal to 1 are kept and those equal to 0 are traced out."
 
+PTrans::usage="PTrans[M, action, desc] takes the transpose of the systems specified by action of M which is composed of subsystems of sizes desc. action should be a vector of 0s and 1s with the same length as the vector desc. Components of action equal to 1 are transposed and those equal to 0 are left untouched."
+
 BasisForm::usage="BasisForm[vec, desc] writes out a vector vec based on dimensions desc."
 
 BasisFormS::usage="BasisFormS[vec, desc] writes out a vector vec based on dimensions desc."
@@ -256,6 +258,8 @@ QubitPartialTrace[M_,sys_]:=PT[M,Table[If[MemberQ[sys,i],0,1],{i,1,Log[2,Dimensi
 PartialTrace[mat_,dim1_,dim2_,s_]:=Module[{},If[(s==1||s==2)&&Dimensions[mat][[1]]==Dimensions[mat][[2]]==dim1*dim2,If[s==1,PT[mat,{0,1},{dim1,dim2}],PT[mat,{1,0},{dim1,dim2}]],Print["PartialTrace: input error"]]]
 
 PT[mat_,keep_,desc_]:=Module[{dim,parts,mat2,i},dim=Tr[DeleteCases[keep*desc,0],Times];parts=Join[Flatten[Position[keep,0]],Flatten[Position[keep,1]]];mat2=Partition[ExchangeSystems[mat,Permute[Range[Length[desc]],parts],desc],{dim,dim}];Sum[mat2[[i,i]],{i,1,Tr[desc,Times]/dim}]]
+
+PTrans[mat_,keep_,desc_]:=Module[{dim,parts,mat2,i},If[Count[keep,0]+Count[keep,1]!=Length[keep],Print["PTrans Error: invalid specification of what to transpose."]];dim=Tr[DeleteCases[keep*desc,0],Times];parts=Join[Flatten[Position[keep,0]],Flatten[Position[keep,1]]];mat2=Partition[ExchangeSystems[mat,Permute[Range[Length[desc]],parts],desc],{dim,dim}];mat2=ArrayFlatten[Map[Transpose,mat2,{2}]];ExchangeSystems[mat2,Permute[Range[Length[desc]],Permute[Range[Length[desc]],parts]],Permute[desc,Permute[Range[Length[desc]],parts]]]]
 
 BasisForm[vec_,desc_]:=Module[{i,dim,v=Flatten[vec]},dim=Tr[desc,Times];For[i=1,i<=dim,i++,If[v[[i]]!=0,Print[v[[i]],"|"<>StringDrop[StringDrop[ToString[IntDigs[i-1,desc]],1],-1]<>">"]]]]
 
