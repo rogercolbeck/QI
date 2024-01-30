@@ -235,9 +235,9 @@ Begin["`Private`"]
 
 CT[M_]:=ConjugateTranspose[M]
 
-KetV[i_,d_]:=Module[{},If[i>=d||i<0,Print["KetV: input should be between 0 and d-1"]];Transpose[{UnitVector[d,i+1]}]]
+KetV[i_,d_]:=Module[{},If[i>=d||i<0,Print["KetV[i,d]: i should be between 0 and d-1"]];Transpose[{UnitVector[d,i+1]}]]
 
-BraV[i_,d_]:=Module[{},If[i>=d||i<0,Print["BraV: input should be between 0 and d-1"]];Conjugate[{UnitVector[d,i+1]}]]
+BraV[i_,d_]:=Module[{},If[i>=d||i<0,Print["BraV[i,d]: i should be between 0 and d-1"]];Conjugate[{UnitVector[d,i+1]}]]
 
 DM[vec_]:=vec.CT[vec]
 
@@ -247,7 +247,7 @@ Tensor[rho_,sigma_,sys_,desc_]:=Module[{desc1,desc2},If[Length[Dimensions[desc]]
 
 TensorPower[M_,power_]:=Module[{i,R},For[i=1;R={{1}},i<=power,i++,R=CircleTimes[R,M]];R]
 
-ExchangeSystems[vec_,newpos_,desc_]:=Module[{list1,list2,i,desc1,desc2},If[Length[Dimensions[desc]]==1,If[Dimensions[vec][[1]]==Dimensions[vec][[2]],desc1=desc;desc2=desc1,If[Dimensions[vec][[2]]==1,desc1=desc;desc2=ConstantArray[1,Length[desc]],Print["ExchangeSystems: Third argument needs to be pairs of dimensions for given input."]]],{desc1,desc2}=Transpose[desc]];If[Tr[desc1,Times]!=Dimensions[vec][[1]]||Tr[desc2,Times]!=Dimensions[vec][[2]],Print["ExchangeSystems: Wrong dimensions"]];list1={};list2={};For[i=0,i<=Dimensions[vec][[1]]-1,i++,list1=Insert[list1,1+FromDigits[Permute[IntDigs[i,desc1],newpos],MixedRadix[Permute[desc1,newpos]]],-1]];For[i=0,i<=Dimensions[vec][[2]]-1,i++,list2=Insert[list2,1+FromDigits[Permute[IntDigs[i,desc2],newpos],MixedRadix[Permute[desc2,newpos]]],-1]];Transpose[Permute[Transpose[Permute[vec,list1]],list2]]]
+ExchangeSystems[vec_,newpos_,desc_]:=Module[{list1,list2,desc1,desc2},If[Length[Dimensions[desc]]==1,If[Dimensions[vec][[1]]==Dimensions[vec][[2]],desc1=desc;desc2=desc1,If[Dimensions[vec][[2]]==1,desc1=desc;desc2=ConstantArray[1,Length[desc]],Print["ExchangeSystems: Third argument needs to be pairs of dimensions for given input."]]],{desc1,desc2}=Transpose[desc]];If[Tr[desc1,Times]!=Dimensions[vec][[1]]||Tr[desc2,Times]!=Dimensions[vec][[2]],Print["ExchangeSystems: Wrong dimensions"]];list1=Table[1+FromDigits[Permute[IntDigs[i,desc1],newpos],MixedRadix[Permute[desc1,newpos]]],{i,0,Dimensions[vec][[1]]-1}];list2=Table[1+FromDigits[Permute[IntDigs[i,desc2],newpos],MixedRadix[Permute[desc2,newpos]]],{i,0,Dimensions[vec][[2]]-1}];Transpose[Permute[Transpose[Permute[vec,list1]],list2]]]
 
 DirectSum[a_,b_]:=Module[{dim1,dim2,out,m},dim1=Dimensions[a][[1]];dim2=Dimensions[b][[1]];out=Join[a,ConstantArray[0,{dim1,dim2}],2];out=Join[out,Join[ConstantArray[0,{dim2,dim1}],b,2]];out]
 
