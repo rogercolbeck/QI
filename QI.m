@@ -433,7 +433,7 @@ ThreadSolve[eqns_,soln_,var_]:=Module[{i,out={}},For[i=1,i<=Dimensions[eqns][[1]
 
 NThreadSolve[eqns_,soln_,var_]:=Module[{i,out={}},For[i=1,i<=Dimensions[eqns][[1]],i++,out=Insert[out,var/.NSolve[eqns[[i]]==soln,var],-1]];Flatten[out,1]]
 
-\[Sigma][i_]:=If[i==0,{{1,0},{0,1}},If[i==1,{{0,1},{1,0}},If[i==2,{{0,-I},{I,0}},If[i==3,\[Sigma][3]={{1,0},{0,-1}}]]]];
+\[Sigma][i_]:=If[i==0,{{1,0},{0,1}},If[i==1,{{0,1},{1,0}},If[i==2,{{0,-I},{I,0}},If[i==3,{{1,0},{0,-1}}]]]];
 
 Support[rho_]:=Module[{dim,i,U,Di,vals,a},dim=Dimensions[rho][[1]];{U,Di}=DiagonalizingUnitary[rho];vals=Flatten[AntiDiagonalMatrix[Chop[Di]]];vals=Limit[vals^a,a->0,Direction->-1];U.DiagonalMatrix[vals].CT[U]]
 
