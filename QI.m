@@ -52,9 +52,11 @@ SchmidtDecomposition::usage="SchmidtDecomposition[v, desc] gives the Schmidt dec
 
 DiagonalizingUnitary::usage="DiagonalizingUnitary[M] outputs {U, Diag} where U is the unitary that diagonalizes normal matrix M to Diag."
 
-EigenvaluesExact::usage="EigenvaluesExact[M,(prec)] outputs as Eigenvalues, except that it orders the outputs first by real and then imaginary part treating these as equal if within prec of each other (default that of Chop[])."
+EigenvaluesExact::usage="EigenvaluesExact[M,(prec),({RealLast->True/False})] outputs as Eigenvalues, except that it orders the outputs first by real and then imaginary part treating these as equal if within prec of each other (default that of Chop[]). If RealLast->True is used, any purely real eigenvalues are put to the end of the list."
 
-EigensystemExact::usage="EigensystemExact[M,(prec)] outputs as Eigensystem, except that it orders the outputs first by real and then imaginary part treating these as equal if within prec of each other (default that of Chop[]) and it ensures orthonormality of the eigenvectors even for exact inputs."
+EigensystemExact::usage="EigensystemExact[M,(prec),({RealLast->True/False})] outputs as Eigensystem, except that it orders the outputs first by real and then imaginary part treating these as equal if within prec of each other (default that of Chop[]) and it ensures orthonormality of the eigenvectors even for exact inputs. If RealLast->True is used, any purely real eigenvalues are put to the end of the list."
+
+JordanForm::usage="JordanForm[A,B,({RealLast->True/False})] takes input either two Hermitian operators with +1/-1 eigenvalues or two projectors finds a unitary converting to Jordan form (2x2 blocks) and outputs {Ap,Bp,U} where Ap and Bp the Jordan forms and U is the Unitary converting, i.e., Ap=U.A.CT[U] etc."
 
 SimultaneouslyDiagonalize::usage="SimultaneouslyDiagonalize[A, B] give a unitary U that diagonalizes both commuting normal matrices A and B."
 
@@ -239,7 +241,7 @@ KetV[i_,d_]:=Module[{},If[i>=d||i<0,Print["KetV[i,d]: i should be between 0 and 
 
 BraV[i_,d_]:=Module[{},If[i>=d||i<0,Print["BraV[i,d]: i should be between 0 and d-1"]];Conjugate[{UnitVector[d,i+1]}]]
 
-DM[vec_]:=vec.CT[vec]
+DM[vec_]:=vec . CT[vec]
 
 CircleTimes[a__]:=KroneckerProduct[a]
 
@@ -271,15 +273,17 @@ SchmidtDecomposition[vec_,sys_]:=Module[{coeffs,vecsa,vecsb,u,w,v,vecmat,i},If[T
 
 DiagonalizingUnitary[M_]:=Module[{vals,vecs,i,U},{vals,vecs}=Eigensystem[M];vecs=Orthogonalize[vecs];U={};For[i=1,i<=Dimensions[M][[1]],i++,U=Insert[U,Normalize[vecs[[i]]],-1]];{Transpose[U],DiagonalMatrix[vals]}]      
 
-OrderingF[vals_,prec_:Null]:=Module[{blocksizes,ord,ord2,v,i,start,out,block,blockv},v=vals;ord=Ordering[Map[Re,v]];blocksizes=Transpose[Tally[Map[Re,v[[ord]]],If[NumericQ[prec],Chop[N[#1-#2],prec]==0&,Chop[N[#1-#2]]==0&]]][[2]];(* note that numerical parts are taken before Tally *) start=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[ord,{start,start-1+blocksizes[[i]]}];blockv=Take[v[[ord]],{start,start-1+blocksizes[[i]]}];ord2=Ordering[Map[Im,blockv]];block=block[[ord2]];start = start + blocksizes[[i]];out=Join[out,block]];out]
+Options[OrderingF]={RealLast->False};OrderingF[vals_,prec_:Null,OptionsPattern[]]:=Module[{blocksizes,ord,ord2,v,i,t,start,out,block,blockv},v=vals;ord=Ordering[Map[Re,v]];blocksizes=Transpose[Tally[Map[Re,v[[ord]]],If[NumericQ[prec],Chop[N[#1-#2],prec]==0&,Chop[N[#1-#2]]==0&]]][[2]];(* note that numerical parts are taken before Tally *) start=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[ord,{start,start-1+blocksizes[[i]]}];blockv=Take[v[[ord]],{start,start-1+blocksizes[[i]]}];ord2=Ordering[Map[Im,blockv]];block=block[[ord2]];start = start + blocksizes[[i]];out=Join[out,block]];If[OptionValue[RealLast],If[NumericQ[prec],v=Chop[vals,prec],v=Chop[vals]];t=Flatten[Position[v[[out]],_?RealValuedNumericQ]];out=Join[Complement[Table[i,{i,1,Length[vals]}],out[[t]]],out[[t]]]];out]
 
-EigenvaluesExact[m_,prec_:Null]:=Module[{vals,ord},vals=Eigenvalues[m];Off[Tally::smtst];ord=OrderingF[N[vals]];On[Tally::smtst];vals[[ord]]]
+Options[EigenvaluesExact]={RealLast->False};EigenvaluesExact[m_,prec_:Null,OptionsPattern[]]:=Module[{vals,ord},vals=Eigenvalues[m];Off[Tally::smtst];ord=OrderingF[N[vals],prec,{RealLast->OptionValue[RealLast]}];On[Tally::smtst];vals[[ord]]]
 
-EigensystemExact[m_,prec_:Null]:=Module[{vals,vecs,i,blocksizes,ord,out,block,block2,startrow},{vals,vecs}=Eigensystem[m];Off[Tally::smtst];ord=OrderingF[N[vals]];vals=vals[[ord]];vecs=vecs[[ord]];blocksizes=Transpose[Tally[vals,If[NumericQ[prec], Chop[N[#1 - #2], prec] == 0 &,Chop[N[#1 - #2]] == 0 &]]][[2]];On[Tally::smtst];startrow = 1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[vecs,{startrow,startrow-1+blocksizes[[i]]}];block2=Simplify[Orthogonalize[block]];block2=Simplify[Map[Normalize[#]&,block2]];startrow = startrow + blocksizes[[i]];out=Join[out,block2]];{vals,out}]
+Options[EigensystemExact]={RealLast->False};EigensystemExact[m_,prec_:Null,OptionsPattern[]]:=Module[{vals,vecs,i,blocksizes,ord,out,block,block2,startrow},{vals,vecs}=Eigensystem[m];Off[Tally::smtst];ord=OrderingF[N[vals],prec,{RealLast->OptionValue[RealLast]}];vals=vals[[ord]];vecs=vecs[[ord]];blocksizes=Transpose[Tally[vals,If[NumericQ[prec], Chop[N[#1 - #2], prec] == 0 &,Chop[N[#1 - #2]] == 0 &]]][[2]];On[Tally::smtst];startrow = 1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,block=Take[vecs,{startrow,startrow-1+blocksizes[[i]]}];block2=Simplify[Orthogonalize[block]];block2=Simplify[Map[Normalize[#]&,block2]];startrow = startrow + blocksizes[[i]];out=Join[out,block2]];{vals,out}]
 
-SimultaneouslyDiagonalize[A_,B_,precision_:Null]:=Module[{vals,vecs,unitary,blocksizes,startrow,out,i,Bblock,vals2,vec2,unitary2,A1,B1,mA,nA,mB,nB,valA,valB,vec,ord},{mA,nA}=Dimensions[A];{mB,nB}=Dimensions[B];If[A.B-B.A!=ConstantArray[0,{mA,nA}],A1=Chop[A];B1=Chop[B],A1=A;B1=B,A1=Simplify[A];B1=Simplify[B]];{vals,unitary}=EigensystemExact[A1,precision];blocksizes=Transpose[Tally[vals,If[NumericQ[precision],Chop[N[#1-#2],precision]==0&,Chop[N[#1-#2]]==0&]]][[2]];startrow=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,Bblock=Chop[Take[unitary.B1.CT[unitary],{startrow,startrow-1+blocksizes[[i]]},{startrow,startrow-1+blocksizes[[i]]}]];startrow=startrow+blocksizes[[i]];If[Bblock==DiagonalMatrix[Diagonal[Bblock]],unitary2=IdentityMatrix[Dimensions[Bblock][[1]]],{vals2,unitary2}=EigensystemExact[Bblock,precision]];If[i==1,out=unitary2,out=DirectSum[out,unitary2]]];out=out.unitary;{valA,valB,vec}={Diagonal[out.A1.CT[out]],Diagonal[out.B1.CT[out]],out};(* The next If is not needed, but can be useful to flag problems *)If[Chop[N[CT[vec].DiagonalMatrix[valA].vec-A1]]!=ConstantArray[0,{mA,nA}]||Chop[N[CT[vec].DiagonalMatrix[valB].vec - B1]]!=ConstantArray[0, {mA, nA}],Print["Error in SimultaneouslyDiagonalize with inputs ",A,", ",B,", ",precision]];{valA,valB,vec}]
+Options[JordanForm]={Prec->Null,RealLast->True};JordanForm[A_,B_,OptionsPattern[]]:=Module[{U},If[Dimensions[A]==Dimensions[B]&&Chop[A-CT[A]]==0*A&&Chop[B-CT[B]]==0*A&&Chop[A . A-IdentityMatrix[Length[A]]]==0*A&&Chop[B . B-IdentityMatrix[Length[B]]]==0*A,U=Conjugate[EigensystemExact[A . B,OptionValue[Prec],RealLast->OptionValue[RealLast]][[2]]];{U . A . CT[U],U . B . CT[U],U},If[Dimensions[A]==Dimensions[B]&&Chop[A-CT[A]]==0*A&&Chop[B-CT[B]]==0*A&&Chop[A . A-A]==0*A&&Chop[B . B-B]==0*A,U=Conjugate[EigensystemExact[(IdentityMatrix[Length[A]]-2*A) . (IdentityMatrix[Length[B]]-2*B),OptionValue[Prec],RealLast->OptionValue[RealLast]][[2]]];{U . A . CT[U],U . B . CT[U],U},Print["JordanForm: invalid input"]]]]
 
-BlochSphere[rho_]:=Module[{x,y,z},x=Tr[rho.\[Sigma][1]];y=Tr[rho.\[Sigma][2]];z=Tr[rho.\[Sigma][3]];{x,y,z}]     
+SimultaneouslyDiagonalize[A_,B_,precision_:Null]:=Module[{vals,vecs,unitary,blocksizes,startrow,out,i,Bblock,vals2,vec2,unitary2,A1,B1,mA,nA,mB,nB,valA,valB,vec,ord},{mA,nA}=Dimensions[A];{mB,nB}=Dimensions[B];If[A . B-B . A!=ConstantArray[0,{mA,nA}],A1=Chop[A];B1=Chop[B],A1=A;B1=B,A1=Simplify[A];B1=Simplify[B]];{vals,unitary}=EigensystemExact[A1,precision];blocksizes=Transpose[Tally[vals,If[NumericQ[precision],Chop[N[#1-#2],precision]==0&,Chop[N[#1-#2]]==0&]]][[2]];startrow=1;out={};For[i=1,i<=Dimensions[blocksizes][[1]],i++,Bblock=Chop[Take[unitary . B1 . CT[unitary],{startrow,startrow-1+blocksizes[[i]]},{startrow,startrow-1+blocksizes[[i]]}]];startrow=startrow+blocksizes[[i]];If[Bblock==DiagonalMatrix[Diagonal[Bblock]],unitary2=IdentityMatrix[Dimensions[Bblock][[1]]],{vals2,unitary2}=EigensystemExact[Bblock,precision]];If[i==1,out=unitary2,out=DirectSum[out,unitary2]]];out=out . unitary;{valA,valB,vec}={Diagonal[out . A1 . CT[out]],Diagonal[out . B1 . CT[out]],out};(* The next If is not needed, but can be useful to flag problems *)If[Chop[N[CT[vec] . DiagonalMatrix[valA] . vec-A1]]!=ConstantArray[0,{mA,nA}]||Chop[N[CT[vec] . DiagonalMatrix[valB] . vec - B1]]!=ConstantArray[0, {mA, nA}],Print["Error in SimultaneouslyDiagonalize with inputs ",A,", ",B,", ",precision]];{valA,valB,vec}]
+
+BlochSphere[rho_]:=Module[{x,y,z},x=Tr[rho . \[Sigma][1]];y=Tr[rho . \[Sigma][2]];z=Tr[rho . \[Sigma][3]];{x,y,z}]     
 
 FromBlochSphere[{x_,y_,z_}]:=Simplify[(1/2)*(IdentityMatrix[2]+x*\[Sigma][1]+y*\[Sigma][2]+z*\[Sigma][3])]
 
@@ -287,35 +291,35 @@ AppendCols[m_]:=Module[{vec,mat,dim},(dim=Dimensions[m];mat=Transpose[m];mat=Joi
 
 FillZero[r_]:=Module[{dr,dc},{dr,dc}=Dimensions[r];If[dc-dr>0,Join[r,ConstantArray[0,{dc-dr,dc}]],r]]
 
-MeasureBasis[rho_,basis_]:=Module[{out,i,j,dimrho,dimU,proj},dimrho=Dimensions[rho][[1]];dimU=Dimensions[basis][[1]];out=rho*0;For[i=1,i<=dimU,i++,proj=Transpose[{basis[[i]]}].Conjugate[{basis[[i]]}];out=out+(proj\[CircleTimes]IdentityMatrix[dimrho/dimU]).rho.(proj\[CircleTimes]IdentityMatrix[dimrho/dimU])];out]
+MeasureBasis[rho_,basis_]:=Module[{out,i,j,dimrho,dimU,proj},dimrho=Dimensions[rho][[1]];dimU=Dimensions[basis][[1]];out=rho*0;For[i=1,i<=dimU,i++,proj=Transpose[{basis[[i]]}] . Conjugate[{basis[[i]]}];out=out+(proj\[CircleTimes]IdentityMatrix[dimrho/dimU]) . rho . (proj\[CircleTimes]IdentityMatrix[dimrho/dimU])];out]
 
-MeasureBasis[rho_,basis_,sys_,desc_]:=Module[{out,i,j,dimrho,dimU,proj},dimrho=Dimensions[rho][[1]];If[Tr[desc,Times]!=dimrho,Print["MeasureBasis: Dimensions of desc should match those of matrix"]];dimU=Dimensions[basis][[1]];out=rho*0;For[i=1,i<=dimU,i++,proj=Transpose[{basis[[i]]}].Conjugate[{basis[[i]]}];out=out+Tensor[proj,IdentityMatrix[dimrho/dimU],sys,desc].rho.Tensor[proj,IdentityMatrix[dimrho/dimU],sys,desc]];out]
+MeasureBasis[rho_,basis_,sys_,desc_]:=Module[{out,i,j,dimrho,dimU,proj},dimrho=Dimensions[rho][[1]];If[Tr[desc,Times]!=dimrho,Print["MeasureBasis: Dimensions of desc should match those of matrix"]];dimU=Dimensions[basis][[1]];out=rho*0;For[i=1,i<=dimU,i++,proj=Transpose[{basis[[i]]}] . Conjugate[{basis[[i]]}];out=out+Tensor[proj,IdentityMatrix[dimrho/dimU],sys,desc] . rho . Tensor[proj,IdentityMatrix[dimrho/dimU],sys,desc]];out]
 
-MeasurePOVM[rho_,POVM_,sys_,desc_]:=Module[{i,j,dimU,pos1},pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["MeasurePOVM: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=Dimensions[rho][[1]],Print["MeasurePOVM: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];Sum[DM[KetV[i-1,dimU]]\[CircleTimes]PT[Tensor[POVM[[i]],IdentityMatrix[Tr[desc,Times]/Dimensions[POVM[[1]]][[1]]],sys,desc].rho,sys-1,desc],{i,1,dimU}]]
+MeasurePOVM[rho_,POVM_,sys_,desc_]:=Module[{i,j,dimU,pos1},pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["MeasurePOVM: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=Dimensions[rho][[1]],Print["MeasurePOVM: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];Sum[DM[KetV[i-1,dimU]]\[CircleTimes]PT[Tensor[POVM[[i]],IdentityMatrix[Tr[desc,Times]/Dimensions[POVM[[1]]][[1]]],sys,desc] . rho,sys-1,desc],{i,1,dimU}]]
 
-POVMIsometry[rho_,POVM_,sys_,desc_]:=Module[{out,i,j,dimrho,dimU,proj,newdesc,pos1,kraus},dimrho=Dimensions[rho][[1]];pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["POVMIsometry: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=dimrho,Print["POVMIsometry: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];newdesc=ReplacePart[desc,pos1->dimU];kraus=Sum[Transpose[{UnitVector[dimU,i]}]\[CircleTimes]Transpose[{UnitVector[dimU,i]}]\[CircleTimes]Tensor[MatrixPower[POVM[[i]],1/2],IdentityMatrix[Tr[DeleteCases[desc*(sys-1),0],Times]],sys,desc],{i,1,dimU}];kraus.rho.CT[kraus]]
+POVMIsometry[rho_,POVM_,sys_,desc_]:=Module[{out,i,j,dimrho,dimU,proj,newdesc,pos1,kraus},dimrho=Dimensions[rho][[1]];pos1=Position[sys,1];If[Dimensions[pos1][[1]]!=1,Print["POVMIsometry: Can only measure on one subsystem"]];pos1=Tr[pos1];If[Tr[desc,Times]!=dimrho,Print["POVMIsometry: Dimensions of desc should match those of matrix"]];dimU=Dimensions[POVM][[1]];newdesc=ReplacePart[desc,pos1->dimU];kraus=Sum[Transpose[{UnitVector[dimU,i]}]\[CircleTimes]Transpose[{UnitVector[dimU,i]}]\[CircleTimes]Tensor[MatrixPower[POVM[[i]],1/2],IdentityMatrix[Tr[DeleteCases[desc*(sys-1),0],Times]],sys,desc],{i,1,dimU}];kraus . rho . CT[kraus]]
 
-ChoiState[set_]:=Module[{ent},ent=DM[Sum[(KetV[i-1,Dimensions[set[[1]]][[2]]]\[CircleTimes]KetV[i-1,Dimensions[set[[1]]][[2]]]),{i,1,Dimensions[set[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]set[[k]]).ent.(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]CT[set[[k]]]),{k,1,Dimensions[set][[1]]}]]
+ChoiState[set_]:=Module[{ent},ent=DM[Sum[(KetV[i-1,Dimensions[set[[1]]][[2]]]\[CircleTimes]KetV[i-1,Dimensions[set[[1]]][[2]]]),{i,1,Dimensions[set[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]set[[k]]) . ent . (IdentityMatrix[Dimensions[set[[1]]][[2]]]\[CircleTimes]CT[set[[k]]]),{k,1,Dimensions[set][[1]]}]]
 
-ChoiState[set1_,set2_]:=Module[{ent},If[Dimensions[set1][[1]]!=Dimensions[set2][[1]],Print["ChoiState Error: sets have different numbers of elements"]];ent=DM[Sum[(KetV[i-1,Dimensions[set1[[1]]][[2]]]\[CircleTimes]KetV[i-1,Dimensions[set1[[1]]][[2]]]),{i,1,Dimensions[set1[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]set1[[k]]).ent.(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]CT[set2[[k]]]),{k,1,Dimensions[set1][[1]]}]]
+ChoiState[set1_,set2_]:=Module[{ent},If[Dimensions[set1][[1]]!=Dimensions[set2][[1]],Print["ChoiState Error: sets have different numbers of elements"]];ent=DM[Sum[(KetV[i-1,Dimensions[set1[[1]]][[2]]]\[CircleTimes]KetV[i-1,Dimensions[set1[[1]]][[2]]]),{i,1,Dimensions[set1[[1]]][[2]]}]];Sum[(IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]set1[[k]]) . ent . (IdentityMatrix[Dimensions[set1[[1]]][[2]]]\[CircleTimes]CT[set2[[k]]]),{k,1,Dimensions[set1][[1]]}]]
 
 ChoiChannel[state_,dA_,dB_]:=Module[{set1={},set2={},i,j,w1,w2,u,d,v},{u,d,v}=SingularValueDecomposition[state];For[i=1,i<=dA*dB,i++,If[Chop[d[[i,i]]]!=0,w1=(d[[i,i]])^(1/2)*Transpose[{Transpose[u][[i]]}];w2=(d[[i,i]])^(1/2)*Transpose[{Transpose[v][[i]]}];set1=Insert[set1,Transpose[Partition[Flatten[w1],dB]],-1];set2=Insert[set2,Transpose[Partition[Flatten[w2],dB]],-1]]];Chop[{set1,set2}]]
 
 ChannelCompress[chan_]:=Module[{n,dA,dB},{n,dB,dA}=Dimensions[chan];ChoiChannel[ChoiState[chan], dA, dB][[1]]]
 
-ExtremeChannelQ[list_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]].list[[j]]],-1]]];If[MatrixRank[newlist]==dim^2,True,False]]
+ExtremeChannelQ[list_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]] . list[[j]]],-1]]];If[MatrixRank[newlist]==dim^2,True,False]]
 
-ExtremeChannelQ[list_,tol_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]].list[[j]]],-1]]];If[Dimensions[DeleteCases[Chop[SingularValueList[newlist],tol],0]][[1]]==dim^2,True,False]]
+ExtremeChannelQ[list_,tol_]:=Module[{dim=Dimensions[list][[1]],i,j,newlist},newlist={};For[i=1,i<=dim,i++,For[j=1,j<=dim,j++,newlist=Insert[newlist,Flatten[CT[list[[i]]] . list[[j]]],-1]]];If[Dimensions[DeleteCases[Chop[SingularValueList[newlist],tol],0]][[1]]==dim^2,True,False]]
 
-PickRandomPsi[n_]:=Module[{psi,i,phi},psi={};For[i=1,i<=n,i++,phi=Random[]*2*\[Pi];psi=Insert[psi,{Random[]*(Cos[phi]+I*Sin[phi])},-1]];psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]
+PickRandomPsi[n_]:=Module[{psi,i,phi},psi={};For[i=1,i<=n,i++,phi=Random[]*2*\[Pi];psi=Insert[psi,{Random[]*(Cos[phi]+I*Sin[phi])},-1]];psi/(Tr[Conjugate[Transpose[psi]] . psi])^(1/2)]
 
-RPickRandomPsi[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{Random[]},-1]];psi/(Tr[Transpose[psi].psi])^(1/2)]
+RPickRandomPsi[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{Random[]},-1]];psi/(Tr[Transpose[psi] . psi])^(1/2)]
 
-RPickRandomPsip[n_,rank_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,If[i<=rank,psi=Insert[psi,{Random[]},-1],psi=Insert[psi,0,-1]]];psi/(Tr[CT[psi].psi])^(1/2)]
+RPickRandomPsip[n_,rank_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,If[i<=rank,psi=Insert[psi,{Random[]},-1],psi=Insert[psi,0,-1]]];psi/(Tr[CT[psi] . psi])^(1/2)]
 
-FPickRandomPsi[n_,prec_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{1+Random[Integer,prec-1]/(1+Random[Integer,prec-1])},-1]];psi/(Tr[Transpose[psi].psi])^(1/2)]
+FPickRandomPsi[n_,prec_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{1+Random[Integer,prec-1]/(1+Random[Integer,prec-1])},-1]];psi/(Tr[Transpose[psi] . psi])^(1/2)]
 
-FPickRandomPsir[n_,prec_,rank_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,If[i<=rank,psi=Insert[psi,{1+Random[Integer,prec-1]/(1+Random[Integer,prec-1])},-1],psi=Insert[psi,0,-1]]];psi/(Tr[Transpose[psi].psi])^(1/2)]
+FPickRandomPsir[n_,prec_,rank_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,If[i<=rank,psi=Insert[psi,{1+Random[Integer,prec-1]/(1+Random[Integer,prec-1])},-1],psi=Insert[psi,0,-1]]];psi/(Tr[Transpose[psi] . psi])^(1/2)]
 
 PickRandomPsi2[n_]:=Module[{i,tot=1,out={},re,phi},For[i=1,i<=n-1,i++,re=RandomReal[tot];tot=tot-re;phi=Random[]*2*\[Pi];out=Insert[out,re^(1/2)*(Cos[phi]+I*Sin[phi]),-1]];phi=Random[]*2*\[Pi];out=Insert[out,tot^(1/2)*(Cos[phi]+I*Sin[phi]),-1];Transpose[{out}]]
 
@@ -323,9 +327,9 @@ RPickRandomPsi2[n_]:=Module[{i,tot=1,out={},re},For[i=1,i<=n-1,i++,re=RandomReal
 
 FPickRandomPsi2[n_,prec_]:=Module[{i,tot=1,out={},re},For[i=1,i<=n-1,i++,re=1+Random[Integer,prec-1];re=tot*re/(re+Random[Integer,prec-1]);tot=tot-re;out=Insert[out,re^(1/2),-1]];out=Insert[out,tot^(1/2),-1];Transpose[{out}]]
 
-PickRandomPsiHaar[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]]},-1]];psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]
+PickRandomPsiHaar[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]]},-1]];psi/(Tr[Conjugate[Transpose[psi]] . psi])^(1/2)]
 
-RPickRandomPsiHaar[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]]},-1]];Abs[psi/(Tr[Conjugate[Transpose[psi]].psi])^(1/2)]]
+RPickRandomPsiHaar[n_]:=Module[{psi,i},psi={};For[i=1,i<=n,i++,psi=Insert[psi,{RandomVariate[NormalDistribution[]]+I*RandomVariate[NormalDistribution[]]},-1]];Abs[psi/(Tr[Conjugate[Transpose[psi]] . psi])^(1/2)]]
 
 PickRandomUnitary[n_]:=Module[{i,v,M},M={};For[i=1,i<=n,i++,v[i]=Flatten[PickRandomPsi[n]];M=Insert[M,v[i],-1]];Orthogonalize[M]]
 
@@ -337,61 +341,61 @@ PickRandomUnitaryHaar[n_]:=Module[{M},M=Table[RandomVariate[NormalDistribution[]
 
 RPickRandomUnitaryHaar[n_]:=Module[{M},M=Table[RandomVariate[NormalDistribution[]],n,n];Orthogonalize[M]]
 
-PickRandomIsometry[dim1_,dim2_]:=Module[{i,M1,M2},M1={};M2={};For[i=1,i<=dim1,i++,M1=Insert[M1,Flatten[PickRandomPsi[dim1]],-1];M2=Insert[M2,Flatten[PickRandomPsi[dim2]],-1]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}].{M1[[i]]},{i,1,dim1}]]
+PickRandomIsometry[dim1_,dim2_]:=Module[{i,M1,M2},M1={};M2={};For[i=1,i<=dim1,i++,M1=Insert[M1,Flatten[PickRandomPsi[dim1]],-1];M2=Insert[M2,Flatten[PickRandomPsi[dim2]],-1]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}] . {M1[[i]]},{i,1,dim1}]]
 
-RPickRandomIsometry[dim1_,dim2_]:=Module[{i,M1,M2},M1={};M2={};For[i=1,i<=dim1,i++,M1=Insert[M1,Flatten[RPickRandomPsi[dim1]],-1];M2=Insert[M2,Flatten[RPickRandomPsi[dim2]],-1]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}].{M1[[i]]},{i,1,dim1}]]
+RPickRandomIsometry[dim1_,dim2_]:=Module[{i,M1,M2},M1={};M2={};For[i=1,i<=dim1,i++,M1=Insert[M1,Flatten[RPickRandomPsi[dim1]],-1];M2=Insert[M2,Flatten[RPickRandomPsi[dim2]],-1]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}] . {M1[[i]]},{i,1,dim1}]]
 
-FPickRandomIsometry[dim1_,dim2_,prec_]:=  Module[{i,M1,M2,ins1,ins2,recurse=0},M1={};M2={};For[i=1,i<=dim1,i++;recurse++,If[recurse==500,Print["FPickRandomIsometry:: failed to find an isometry after 500 tries, so output may not be an isometry, try increasing prec"];M1=Insert[M1,ins1,-1];M2=Insert[M2,ins2,-1];Break[]];ins1=Flatten[FPickRandomPsi[dim1,prec]];ins2=Flatten[FPickRandomPsi[dim2,prec]];If[MemberQ[M1,ins1]||MemberQ[M2,ins2],i--,M1=Insert[M1,ins1,-1];M2=Insert[M2,ins2,-1]]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}].{M1[[i]]},{i,1,dim1}]]
+FPickRandomIsometry[dim1_,dim2_,prec_]:=  Module[{i,M1,M2,ins1,ins2,recurse=0},M1={};M2={};For[i=1,i<=dim1,i++;recurse++,If[recurse==500,Print["FPickRandomIsometry:: failed to find an isometry after 500 tries, so output may not be an isometry, try increasing prec"];M1=Insert[M1,ins1,-1];M2=Insert[M2,ins2,-1];Break[]];ins1=Flatten[FPickRandomPsi[dim1,prec]];ins2=Flatten[FPickRandomPsi[dim2,prec]];If[MemberQ[M1,ins1]||MemberQ[M2,ins2],i--,M1=Insert[M1,ins1,-1];M2=Insert[M2,ins2,-1]]];M1=Orthogonalize[M1];M2=Orthogonalize[M2];Sum[CT[{M2[[i]]}] . {M1[[i]]},{i,1,dim1}]]
 
-PickRandomRho[n_]:=Module[{U},U=PickRandomUnitary[n];Chop[U.DiagonalMatrix[Flatten[(RPickRandomPsi[n])^2]].CT[U]]]
+PickRandomRho[n_]:=Module[{U},U=PickRandomUnitary[n];Chop[U . DiagonalMatrix[Flatten[(RPickRandomPsi[n])^2]] . CT[U]]]
 
-PickRandomRho[n_,rank_]:=Module[{U},U=PickRandomUnitary[n];Chop[U.DiagonalMatrix[Flatten[(RPickRandomPsip[n,rank])^2]].CT[U]]]   
+PickRandomRho[n_,rank_]:=Module[{U},U=PickRandomUnitary[n];Chop[U . DiagonalMatrix[Flatten[(RPickRandomPsip[n,rank])^2]] . CT[U]]]   
           
-RPickRandomRho[n_]:=Module[{U},U=RPickRandomUnitary[n];Chop[U.DiagonalMatrix[Flatten[(RPickRandomPsi[n])^2]].CT[U]]]          
+RPickRandomRho[n_]:=Module[{U},U=RPickRandomUnitary[n];Chop[U . DiagonalMatrix[Flatten[(RPickRandomPsi[n])^2]] . CT[U]]]          
 
-RPickRandomRho[n_,rank_]:=Module[{U},U=RPickRandomUnitary[n];Chop[U.DiagonalMatrix[Flatten[(RPickRandomPsip[n,rank])^2]].CT[U]]]
+RPickRandomRho[n_,rank_]:=Module[{U},U=RPickRandomUnitary[n];Chop[U . DiagonalMatrix[Flatten[(RPickRandomPsip[n,rank])^2]] . CT[U]]]
 
-FPickRandomRho[n_,prec_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U.DiagonalMatrix[Flatten[(FPickRandomPsi[n,prec])^2]].CT[U]]]                
+FPickRandomRho[n_,prec_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U . DiagonalMatrix[Flatten[(FPickRandomPsi[n,prec])^2]] . CT[U]]]                
 
-FPickRandomRho[n_,prec_,rank_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U.DiagonalMatrix[Flatten[(FPickRandomPsir[n,prec,rank])^2]].CT[U]]]   
+FPickRandomRho[n_,prec_,rank_]:=Module[{U},U=FPickRandomUnitary[n,prec];Chop[U . DiagonalMatrix[Flatten[(FPickRandomPsir[n,prec,rank])^2]] . CT[U]]]   
 
 PickRandomPOVM[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*PickRandomRho[dim];While[Min[Chop[Eigenvalues[left-cand]]]<=0,cand=Random[]*tr*PickRandomRho[dim]];out=Insert[out,cand,-1];left=left-cand;tr=tr-Tr[cand]];Insert[out,left,-1]]
     
 RPickRandomPOVM[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*RPickRandomRho[dim];While[Min[Chop[Eigenvalues[left-cand]]]<=0,cand=Random[]*tr*RPickRandomRho[dim]];out=Insert[out,cand,-1];left=left-cand;tr=tr-Tr[cand]];Insert[out,left,-1]]
 
-PickRandomMeasurement[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*PickRandomUnitary[dim].PickRandomRho[dim];While[Min[Chop[Eigenvalues[left-CT[cand].cand]]]<=0,cand=Random[]*tr*PickRandomUnitary[dim].PickRandomRho[dim]];out=Insert[out,cand,-1];left=left-CT[cand].cand;tr=tr-Tr[CT[cand].cand]];Insert[out,PickRandomUnitary[dim].MatrixPower[left,1/2],-1]]
+PickRandomMeasurement[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*PickRandomUnitary[dim] . PickRandomRho[dim];While[Min[Chop[Eigenvalues[left-CT[cand] . cand]]]<=0,cand=Random[]*tr*PickRandomUnitary[dim] . PickRandomRho[dim]];out=Insert[out,cand,-1];left=left-CT[cand] . cand;tr=tr-Tr[CT[cand] . cand]];Insert[out,PickRandomUnitary[dim] . MatrixPower[left,1/2],-1]]
 
-RPickRandomMeasurement[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*RPickRandomUnitary[dim].RPickRandomRho[dim];While[Min[Chop[Eigenvalues[left-CT[cand].cand]]]<=0,cand=Random[]*tr*RPickRandomUnitary[dim].RPickRandomRho[dim]];out=Insert[out,cand,-1];left=left-CT[cand].cand;tr=tr-Tr[CT[cand].cand]];Insert[out,RPickRandomUnitary[dim].MatrixPower[left,1/2],-1]]
+RPickRandomMeasurement[dim_,numels_]:=Module[{out,i,tr,cand,left},out={};tr=1;left=IdentityMatrix[dim];For[i=1,i<=numels-1,i++,cand=Random[]*tr*RPickRandomUnitary[dim] . RPickRandomRho[dim];While[Min[Chop[Eigenvalues[left-CT[cand] . cand]]]<=0,cand=Random[]*tr*RPickRandomUnitary[dim] . RPickRandomRho[dim]];out=Insert[out,cand,-1];left=left-CT[cand] . cand;tr=tr-Tr[CT[cand] . cand]];Insert[out,RPickRandomUnitary[dim] . MatrixPower[left,1/2],-1]]
 
-PickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=PickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]BraV[i-1,n]).iso,-1]];list1]
+PickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=PickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]BraV[i-1,n]) . iso,-1]];list1]
 
-RPickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=RPickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]BraV[i-1,n]).iso,-1]];list1]
+RPickRandomChannel[dimA_,dimB_,n_]:=Module[{iso=RPickRandomIsometry[dimA,dimB*n],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]BraV[i-1,n]) . iso,-1]];list1]
 
-FPickRandomChannel[dimA_,dimB_,n_,prec_]:=Module[{iso=FPickRandomIsometry[dimA,dimB*n,prec],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]BraV[i-1,n]).iso,-1]];list1]
+FPickRandomChannel[dimA_,dimB_,n_,prec_]:=Module[{iso=FPickRandomIsometry[dimA,dimB*n,prec],list1={},i},For[i=1,i<=n,i++,list1=Insert[list1,(IdentityMatrix[dimB]\[CircleTimes]BraV[i-1,n]) . iso,-1]];list1]
 
-Dist[A_,B_]:=(1/2)*Tr[MatrixPower[CT[(A-B)].(A-B),1/2]]
+Dist[A_,B_]:=(1/2)*Tr[MatrixPower[CT[(A-B)] . (A-B),1/2]]
 
 QuickDist[A_,B_]:=(1/2)*Tr[Abs[Eigenvalues[A-B]]] 
 
-Fidelity[A_,B_]:=Tr[MatrixPower[MatrixPower[A,1/2].B.MatrixPower[A,1/2],1/2]]
+Fidelity[A_,B_]:=Tr[MatrixPower[MatrixPower[A,1/2] . B . MatrixPower[A,1/2],1/2]]
 
-OptimumPOVM[A_,B_]:=Module[{dim,D1,U,F,Q,S,Q1,S1,i},dim=Extract[Dimensions[A],1];{U,D1}=DiagonalizingUnitary[A-B];F=AntiDiagonalMatrix[D1];Q1={};S1={};For[i=1,i<=dim,i++,If[Chop[Extract[Extract[F,i],1]]>0,Q1=Insert[Q1,1,-1];S1=Insert[S1,0,-1],S1=Insert[S1,1,-1];Q1=Insert[Q1,0,-1]]];Q=DiagonalMatrix[Q1];S=DiagonalMatrix[S1];Q=U.Q.CT[U];S=U.S.CT[U];{Q,S}]
+OptimumPOVM[A_,B_]:=Module[{dim,D1,U,F,Q,S,Q1,S1,i},dim=Extract[Dimensions[A],1];{U,D1}=DiagonalizingUnitary[A-B];F=AntiDiagonalMatrix[D1];Q1={};S1={};For[i=1,i<=dim,i++,If[Chop[Extract[Extract[F,i],1]]>0,Q1=Insert[Q1,1,-1];S1=Insert[S1,0,-1],S1=Insert[S1,1,-1];Q1=Insert[Q1,0,-1]]];Q=DiagonalMatrix[Q1];S=DiagonalMatrix[S1];Q=U . Q . CT[U];S=U . S . CT[U];{Q,S}]
      
-OptimumPOVM[A_,B_,pA_]:=Module[{dim,D1,U,F,Q,S,Q1,S1,i},dim=Extract[Dimensions[A],1];{U,D1}=DiagonalizingUnitary[pA*A-(1-pA)*B];F=AntiDiagonalMatrix[D1];Q1={};S1={};For[i=1,i<=dim,i++,If[Chop[Extract[Extract[F,i],1]]>0,Q1=Insert[Q1,1,-1];S1=Insert[S1,0,-1],S1=Insert[S1,1,-1];Q1=Insert[Q1,0,-1]]];Q=DiagonalMatrix[Q1];S=DiagonalMatrix[S1];Q=U.Q.CT[U];S=U.S.CT[U];{Q,S}]
+OptimumPOVM[A_,B_,pA_]:=Module[{dim,D1,U,F,Q,S,Q1,S1,i},dim=Extract[Dimensions[A],1];{U,D1}=DiagonalizingUnitary[pA*A-(1-pA)*B];F=AntiDiagonalMatrix[D1];Q1={};S1={};For[i=1,i<=dim,i++,If[Chop[Extract[Extract[F,i],1]]>0,Q1=Insert[Q1,1,-1];S1=Insert[S1,0,-1],S1=Insert[S1,1,-1];Q1=Insert[Q1,0,-1]]];Q=DiagonalMatrix[Q1];S=DiagonalMatrix[S1];Q=U . Q . CT[U];S=U . S . CT[U];{Q,S}]
 
-Matrixlog[A_]:=Module[{D1,U},{U,D1}=DiagonalizingUnitary[A];U.DiagonalMatrix[Log[Flatten[AntiDiagonalMatrix[D1]]]].Conjugate[Transpose[U]]]
+Matrixlog[A_]:=Module[{D1,U},{U,D1}=DiagonalizingUnitary[A];U . DiagonalMatrix[Log[Flatten[AntiDiagonalMatrix[D1]]]] . Conjugate[Transpose[U]]]
 	
-Matrixlog[b_,A_]:=Module[{D1,U},{U,D1}=DiagonalizingUnitary[A];U.DiagonalMatrix[Log[b,Flatten[AntiDiagonalMatrix[D1]]]].Conjugate[Transpose[U]]]	
+Matrixlog[b_,A_]:=Module[{D1,U},{U,D1}=DiagonalizingUnitary[A];U . DiagonalMatrix[Log[b,Flatten[AntiDiagonalMatrix[D1]]]] . Conjugate[Transpose[U]]]	
 
-Matrixlog0[A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,Log[x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U.DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]].CT[U]]
+Matrixlog0[A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,Log[x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U . DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]] . CT[U]]
 
-Matrixlog0[b_,A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,Log[b,x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U.DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]].CT[U]]
+Matrixlog0[b_,A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,Log[b,x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U . DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]] . CT[U]]
 
-Matrixxlogx[A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,x*Log[x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U.DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]].CT[U]]
+Matrixxlogx[A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,x*Log[x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U . DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]] . CT[U]]
 
-Matrixxlogx[b_,A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,x*Log[b,x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U.DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]].CT[U]]
+Matrixxlogx[b_,A_]:=Module[{D1,U,f},f[x_]:=If[x==0,0,x*Log[b,x]];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U . DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]] . CT[U]]
 
-MatrixPower0[A_,a_]:=Module[{U,D1,f},f[x_]:=If[x==0,0,x^a];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U.DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]].CT[U]]
+MatrixPower0[A_,a_]:=Module[{U,D1,f},f[x_]:=If[x==0,0,x^a];{U,D1}=DiagonalizingUnitary[A];D1=Chop[D1];U . DiagonalMatrix[Map[f,Flatten[Diagonal[D1]]]] . CT[U]]
 
 ShanEntropy[q_]:=Module[{i,p,ent},ent=0;If[!VectorQ[q],If[q<0||q>1,Print["ShanEntropy: Invalid input"]];ent=Limit[-(p*Log[p]+(1-p)*Log[1-p])/Log[2],p->q],For[i=1,i<=Dimensions[q][[1]],i++,If[q[[i]]<0||q[[i]]>1,Print["ShanEntropy: Invalid input"]];ent=ent-Limit[p*Log[p]/Log[2],p->q[[i]]]]];ent]
 
@@ -399,15 +403,15 @@ vNEntropy[rho_,keep_,desc_]:=Module[{i,keep2={},keep3={},rhoAB,rhoB,desc3={}},Fo
 
 vNInfo[rho_,keep_,desc_]:=Module[{i,keep1={},keep2={},keep3={},desc3={}},For[i=1,i<=Dimensions[desc][[1]],i++,If[keep[[i]]==1,keep1=Insert[keep1,1,-1],keep1=Insert[keep1,0,-1]];If[keep[[i]]==2,keep2=Insert[keep2,1,-1],keep2=Insert[keep2,0,-1]];If[keep[[i]]==3,keep3=Insert[keep3,1,-1],keep3=Insert[keep3,0,-1]]];-vNEntropy[rho,keep1+2*(keep2+keep3),desc]+vNEntropy[rho,keep1+2*keep3,desc]]
 
-RelEnt[A_,B_]:=Module[{suppB},suppB=Support[B];If[Chop[suppB.A.CT[suppB]-A]==0*A,(Tr[Matrixxlogx[2,A]]-Tr[A.Matrixlog0[2,B]])/Tr[A],\[Infinity]]]
+RelEnt[A_,B_]:=Module[{suppB},suppB=Support[B];If[Chop[suppB . A . CT[suppB]-A]==0*A,(Tr[Matrixxlogx[2,A]]-Tr[A . Matrixlog0[2,B]])/Tr[A],\[Infinity]]]
 
-RelEnt[alpha_,A_,B_]:=Module[{supp,out},If[alpha==1,out=RelEnt[A,B]];If[alpha>1,supp=Support[B];If[Chop[supp.A.CT[supp]-A]==0*A,out=(1/(alpha-1))*Log[2,Tr[MatrixPower[A,alpha].MatrixPower0[B,1-alpha]]],out=\[Infinity]]];If[0<alpha<1,out=(1/(alpha-1))*Log[2,Tr[MatrixPower[A,alpha].MatrixPower[B,1-alpha]]]];If[alpha==0,out=-Log[2,Tr[Support[A].B]]];If[alpha<0,supp=Support[A];If[Chop[supp.B.CT[supp]-B]==0*B,out=(1/(alpha-1))*Log[2,Tr[MatrixPower0[A,alpha].MatrixPower[B,1-alpha]]],out=\[Infinity]]];out]
+RelEnt[alpha_,A_,B_]:=Module[{supp,out},If[alpha==1,out=RelEnt[A,B]];If[alpha>1,supp=Support[B];If[Chop[supp . A . CT[supp]-A]==0*A,out=(1/(alpha-1))*Log[2,Tr[MatrixPower[A,alpha] . MatrixPower0[B,1-alpha]]],out=\[Infinity]]];If[0<alpha<1,out=(1/(alpha-1))*Log[2,Tr[MatrixPower[A,alpha] . MatrixPower[B,1-alpha]]]];If[alpha==0,out=-Log[2,Tr[Support[A] . B]]];If[alpha<0,supp=Support[A];If[Chop[supp . B . CT[supp]-B]==0*B,out=(1/(alpha-1))*Log[2,Tr[MatrixPower0[A,alpha] . MatrixPower[B,1-alpha]]],out=\[Infinity]]];out]
 
 RenyiEnt[alpha_,rho_,keep_,desc_]:=Module[{i,keep2={},keep3={},desc3={},rhoAB,rhoB,out},If[Dimensions[rho][[1]]!=Tr[desc,Times],Print["RenyiEnt: Wrong dimensions"]];If[Dimensions[desc][[1]]==1&&keep=={1},If[alpha==1,out=ShanEntropy[Chop[Eigenvalues[rho]]],out=1/(1-alpha)*Log[2,Tr[MatrixPower[rho,alpha]]]],For[i=1,i<=Dimensions[desc][[1]],i++,If[keep[[i]]==2,keep2=Insert[keep2,1,-1];keep3=Insert[keep3,1,-1];desc3=Insert[desc3,desc[[i]],-1],If[keep[[i]]==1,keep2=Insert[keep2,1,-1];keep3=Insert[keep3,0,-1];desc3=Insert[desc3,desc[[i]],-1],keep2=Insert[keep2,0,-1]]]];rhoAB=PT[rho,keep2,desc];rhoB=PT[rhoAB,keep3,desc3];out=-RelEnt[alpha,rhoAB,Tensor[IdentityMatrix[Dimensions[rhoAB][[1]]/Dimensions[rhoB][[1]]],rhoB,DeleteCases[keep,0],Delete[desc,Position[keep,0]]]]];out]
 
-RemoveIneqConstraints[M_,b_]:=Module[{outM,outb,i,j,obj,Mp,bp,ans},Off[LinearProgramming::lpsub];outM=M;outb=b;If[Dimensions[Dimensions[b]]=={2},For[i=Dimensions[M][[1]],i>=1,i--,If[b[[i]][[2]]==-1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[-obj,Mp,bp];If[ans.obj>b[[i]][[1]]||ans.obj===Indeterminate,j=1,outM=Mp;outb=bp,-1]];If[b[[i]][[2]]==1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj,Mp,bp];If[ans.obj<b[[i]][[1]]||ans.obj===Indeterminate,j=1,outM=Mp;outb=bp]]]];If[Dimensions[Dimensions[b]]=={1},For[i=Dimensions[M][[1]],i>=1,i--,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj,Mp,bp];If[ans.obj<b[[i]]||ans.obj===Indeterminate,j=1,outM=Mp;outb=bp]]];On[LinearProgramming::lpsub];{outM,outb}]
+RemoveIneqConstraints[M_,b_]:=Module[{outM,outb,i,j,obj,Mp,bp,ans},Off[LinearProgramming::lpsub];outM=M;outb=b;If[Dimensions[Dimensions[b]]=={2},For[i=Dimensions[M][[1]],i>=1,i--,If[b[[i]][[2]]==-1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[-obj,Mp,bp];If[ans . obj>b[[i]][[1]]||ans . obj===Indeterminate,j=1,outM=Mp;outb=bp,-1]];If[b[[i]][[2]]==1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj,Mp,bp];If[ans . obj<b[[i]][[1]]||ans . obj===Indeterminate,j=1,outM=Mp;outb=bp]]]];If[Dimensions[Dimensions[b]]=={1},For[i=Dimensions[M][[1]],i>=1,i--,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj,Mp,bp];If[ans . obj<b[[i]]||ans . obj===Indeterminate,j=1,outM=Mp;outb=bp]]];On[LinearProgramming::lpsub];{outM,outb}]
 
-NRemoveIneqConstraints[M_,b_]:=Module[{outM,outb,i,j,obj,Mp,bp,ans},Off[LinearProgramming::lpsub];outM=M;outb=b;If[Dimensions[Dimensions[b]]=={2},For[i=Dimensions[M][[1]],i>=1,i--,If[b[[i]][[2]]==-1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[-obj*1.0,Mp,bp];If[Chop[ans.obj-b[[i]][[1]]]>0||ans.obj===Indeterminate,j=1,outM=Mp;outb=bp,-1]];If[b[[i]][[2]]==1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj*1.0,Mp,bp];If[Chop[ans.obj-b[[i]][[1]]]<0||ans.obj===Indeterminate,j=1,outM=Mp;outb=bp]]]];If[Dimensions[Dimensions[b]]=={1},For[i=Dimensions[M][[1]],i>=1,i--,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj*1.0,Mp,bp];If[Chop[ans.obj-b[[i]]]<0||ans.obj===Indeterminate,j=1,outM=Mp;outb=bp]]];On[LinearProgramming::lpsub];{outM,outb}]
+NRemoveIneqConstraints[M_,b_]:=Module[{outM,outb,i,j,obj,Mp,bp,ans},Off[LinearProgramming::lpsub];outM=M;outb=b;If[Dimensions[Dimensions[b]]=={2},For[i=Dimensions[M][[1]],i>=1,i--,If[b[[i]][[2]]==-1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[-obj*1.0,Mp,bp];If[Chop[ans . obj-b[[i]][[1]]]>0||ans . obj===Indeterminate,j=1,outM=Mp;outb=bp,-1]];If[b[[i]][[2]]==1,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj*1.0,Mp,bp];If[Chop[ans . obj-b[[i]][[1]]]<0||ans . obj===Indeterminate,j=1,outM=Mp;outb=bp]]]];If[Dimensions[Dimensions[b]]=={1},For[i=Dimensions[M][[1]],i>=1,i--,obj=outM[[i]];Mp=Drop[outM,{i}];bp=Drop[outb,{i}];ans=LinearProgramming[obj*1.0,Mp,bp];If[Chop[ans . obj-b[[i]]]<0||ans . obj===Indeterminate,j=1,outM=Mp;outb=bp]]];On[LinearProgramming::lpsub];{outM,outb}]
 
 RemoveDuplicateConstraints[M_,b_]:=Module[{i,j,Mp,Mg,Ml,bp,gathered,max,maxpos,min,minpos,pos,drop,posg,posl},drop={};If[Dimensions[Dimensions[b]]=={2},Mp=Join[M,Transpose[{b[[All,2]]}],2];gathered=Gather[Mp];Mg=Join[M,Sign[Transpose[{b[[All,2]]}]+1/2],2];Ml=Join[M,Sign[Transpose[{b[[All,2]]}]-1/2],2];For[i=1,i<=Dimensions[gathered][[1]],i++,If[Dimensions[gathered[[i]]][[1]]>=2&&gathered[[i]][[1]][[-1]]==1,pos=Position[Mp,gathered[[i]][[1]]];posg=Position[Mg,gathered[[i]][[1]]];If[Dimensions[posg]!=Dimensions[pos],drop=Join[drop,pos],max=-\[Infinity];For[j=1,j<=Dimensions[pos][[1]],j++,If[b[[pos[[j]][[1]]]][[1]]>max,max=b[[pos[[j]][[1]]]][[1]];maxpos=pos[[j]][[1]]]];drop=Join[drop,DeleteCases[pos,{maxpos}]]]];If[Dimensions[gathered[[i]]][[1]]>=2&&gathered[[i]][[1]][[-1]]==-1,pos=Position[Mp,gathered[[i]][[1]]];posl=Position[Ml,gathered[[i]][[1]]];If[Dimensions[posl]!=Dimensions[pos],drop=Join[drop,pos],min=\[Infinity];For[j=1,j<=Dimensions[pos][[1]],j++,If[b[[pos[[j]][[1]]]][[1]]<min,min=b[[pos[[j]][[1]]]][[1]];minpos=pos[[j]][[1]]]];drop=Join[drop,DeleteCases[pos,{minpos}]]]];If[Dimensions[gathered[[i]]][[1]]>=2&&gathered[[i]][[1]][[-1]]==0,pos=Position[Mp,gathered[[i]][[1]]];drop=Join[drop,DeleteCases[pos,{i}]]]]];If[Dimensions[Dimensions[b]]=={1},gathered=Gather[M];For[i=1,i<=Dimensions[gathered][[1]],i++,If[Dimensions[gathered[[i]][[1]]][[1]]>=2,pos=Position[M,gathered[[i]][[1]]];max=-\[Infinity];For[j=1,j<=Dimensions[pos][[1]],j++,If[b[[pos[[j]][[1]]]]>max,max=b[[pos[[j]][[1]]]];maxpos=pos[[j]][[1]]]];drop=Join[drop,DeleteCases[pos,{maxpos}]]]]];{Delete[M,drop],Delete[b,drop]}]
 
@@ -435,15 +439,15 @@ NThreadSolve[eqns_,soln_,var_]:=Module[{i,out={}},For[i=1,i<=Dimensions[eqns][[1
 
 \[Sigma][i_]:=If[i==0,{{1,0},{0,1}},If[i==1,{{0,1},{1,0}},If[i==2,{{0,-I},{I,0}},If[i==3,{{1,0},{0,-1}}]]]];
 
-Support[rho_]:=Module[{dim,i,U,Di,vals,a},dim=Dimensions[rho][[1]];{U,Di}=DiagonalizingUnitary[rho];vals=Flatten[AntiDiagonalMatrix[Chop[Di]]];vals=Limit[vals^a,a->0,Direction->-1];U.DiagonalMatrix[vals].CT[U]]
+Support[rho_]:=Module[{dim,i,U,Di,vals,a},dim=Dimensions[rho][[1]];{U,Di}=DiagonalizingUnitary[rho];vals=Flatten[AntiDiagonalMatrix[Chop[Di]]];vals=Limit[vals^a,a->0,Direction->-1];U . DiagonalMatrix[vals] . CT[U]]
 
-PosPart[mat_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[vals[[i]]>0,proj=proj+Transpose[{Normalize[vecs[[i]]]}].Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["PosPart: unable to determine a sign"]]]];proj.mat.proj]
+PosPart[mat_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[vals[[i]]>0,proj=proj+Transpose[{Normalize[vecs[[i]]]}] . Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["PosPart: unable to determine a sign"]]]];proj . mat . proj]
 
-PosPart[mat_,assum_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[Simplify[vals[[i]]>0,assum],proj=proj+Transpose[{Normalize[vecs[[i]]]}].Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["PosPart: unable to determine a sign"]]]];proj.mat.proj]
+PosPart[mat_,assum_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[Simplify[vals[[i]]>0,assum],proj=proj+Transpose[{Normalize[vecs[[i]]]}] . Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["PosPart: unable to determine a sign"]]]];proj . mat . proj]
 
-NegPart[mat_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[vals[[i]]<0,proj=proj+Transpose[{Normalize[vecs[[i]]]}].Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["NegPart: unable to determine a sign"]]]];proj.mat.proj]
+NegPart[mat_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[vals[[i]]<0,proj=proj+Transpose[{Normalize[vecs[[i]]]}] . Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["NegPart: unable to determine a sign"]]]];proj . mat . proj]
 
-NegPart[mat_,assum_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[Simplify[vals[[i]]<0,assum],proj=proj+Transpose[{Normalize[vecs[[i]]]}].Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["NegPart: unable to determine a sign"]]]];proj.mat.proj]
+NegPart[mat_,assum_]:=Module[{i,vals,vecs,proj,warn=0},{vals,vecs}=Chop[Eigensystem[mat]];proj=0*IdentityMatrix[Dimensions[mat][[1]]];For[i=1,i<=Dimensions[vals][[1]],i++,If[Simplify[vals[[i]]<0,assum],proj=proj+Transpose[{Normalize[vecs[[i]]]}] . Conjugate[{Normalize[vecs[[i]]]}],Null,If[warn==0,warn=1;Print["NegPart: unable to determine a sign"]]]];proj . mat . proj]
 
 AntiDiagonalMatrix[M_]:=Module[{k,n,v},n=Extract[Dimensions[M],1];v={Extract[Extract[M,1],1]};For[k=2,k<=n,k++,v=Insert[v,Extract[Extract[M,k],k],k]];Transpose[{v}]]
 
@@ -465,7 +469,7 @@ ManualDeriv[fn_,vars_,point_,steps_]:=Module[{i,n=Dimensions[vars][[1]],out={},z
 
 QRDecomp[M_]:=Module[{q,r,dimq,dimm=Dimensions[M]},If[dimm[[1]]!=dimm[[2]],Print["QRDecomp warning: input not a square matrix, so output may not be of expected form."]];{q,r}=QRDecomposition[M];dimq=Dimensions[q];If[dimq[[1]]!=dimq[[2]],q=CT[AppendCols[CT[q]]];r=FillZero[r]];{q,r}]
 
-RQDecomp[M_]:=Module[{Q,R},{Q,R}=QRDecomp[CT[Reverse[M]]];{M.CT[Reverse[Q]],CT[Reverse[Q]]}]
+RQDecomp[M_]:=Module[{Q,R},{Q,R}=QRDecomp[CT[Reverse[M]]];{M . CT[Reverse[Q]],CT[Reverse[Q]]}]
 
 LQDecomp[M_]:=Module[{Q,R},{Q,R}=QRDecomp[CT[M]];{CT[R],CT[Q]}]
 
@@ -475,21 +479,21 @@ SignZeroPos[x_]:=Module[{out={},i},For[i=1,i<=Dimensions[x][[1]],i++,out=Insert[
 
 SignZeroNeg[x_]:=Module[{out={},i},For[i=1,i<=Dimensions[x][[1]],i++,out=Insert[out,If[Re[x[[i]]]>0,1,-1],-1]];out]
 
-QRDecompPos[m_]:=Module[{q,r,s},{q,r}=QRDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[r]]];{s.q,s.r}]
+QRDecompPos[m_]:=Module[{q,r,s},{q,r}=QRDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[r]]];{s . q,s . r}]
 
-QRDecompNeg[m_]:=Module[{q,r,s},{q,r}=QRDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[r]]];{s.q,s.r}]
+QRDecompNeg[m_]:=Module[{q,r,s},{q,r}=QRDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[r]]];{s . q,s . r}]
 
-RQDecompPos[m_]:=Module[{q,r,s},{r,q}=RQDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[r]]];{r.s,q.s}]
+RQDecompPos[m_]:=Module[{q,r,s},{r,q}=RQDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[r]]];{r . s,q . s}]
 
-RQDecompNeg[m_]:=Module[{q,r,s},{r,q}=RQDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[r]]];{r.s,q.s}]
+RQDecompNeg[m_]:=Module[{q,r,s},{r,q}=RQDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[r]]];{r . s,q . s}]
 
-LQDecompPos[m_]:=Module[{q,l,s},{l,q}=LQDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[l]]];{l.s,q.s}]
+LQDecompPos[m_]:=Module[{q,l,s},{l,q}=LQDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[l]]];{l . s,q . s}]
 
-LQDecompNeg[m_]:=Module[{q,l,s},{l,q}=LQDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[l]]];{l.s,q.s}]
+LQDecompNeg[m_]:=Module[{q,l,s},{l,q}=LQDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[l]]];{l . s,q . s}]
 
-QLDecompPos[m_]:=Module[{q,l,s},{q,l}=QLDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[l]]];{s.q,s.l}]
+QLDecompPos[m_]:=Module[{q,l,s},{q,l}=QLDecomp[m];s=DiagonalMatrix[SignZeroPos[Diagonal[l]]];{s . q,s . l}]
 
-QLDecompNeg[m_]:=Module[{q,l,s},{q,l}=QLDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[l]]];{s.q,s.l}]
+QLDecompNeg[m_]:=Module[{q,l,s},{q,l}=QLDecomp[m];s=DiagonalMatrix[-SignZeroNeg[Diagonal[l]]];{s . q,s . l}]
 
 
 
